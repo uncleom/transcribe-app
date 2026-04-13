@@ -127,19 +127,24 @@ export default function TranscriptionPage() {
       <div className="mx-auto max-w-2xl">
 
         {/* Header row */}
-        <div className="mb-8 flex items-start justify-between gap-4">
+        <div className="mb-6 flex items-start justify-between gap-4">
           <div className="min-w-0">
             <h1 className="truncate text-lg font-semibold text-white">
               {data.file_name}
             </h1>
-            <p className="mt-0.5 text-xs text-white/35">
+            {/* Language + duration pills */}
+            <div className="mt-2 flex flex-wrap gap-2">
               {result.language && (
-                <span className="mr-3 uppercase tracking-wider">{result.language}</span>
+                <span className="rounded-full bg-white/8 px-3 py-1 text-xs font-medium uppercase tracking-wider text-white/60">
+                  {result.language}
+                </span>
               )}
               {result.duration > 0 && (
-                <span>{formatTime(result.duration)}</span>
+                <span className="rounded-full bg-white/8 px-3 py-1 text-xs font-medium text-white/60">
+                  {formatTime(result.duration)}
+                </span>
               )}
-            </p>
+            </div>
           </div>
 
           <button
@@ -152,11 +157,11 @@ export default function TranscriptionPage() {
 
         {/* Summary */}
         {result.summary && (
-          <div className="mb-8 rounded-xl border border-[#e2ff00]/20 bg-[#e2ff00]/[0.04] p-5">
-            <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-[#e2ff00]/60">
+          <div className="mb-8 rounded-xl border border-[#e2ff00]/25 bg-[#e2ff00]/[0.05] p-5">
+            <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-[#e2ff00]/70">
               Summary
             </p>
-            <p className="whitespace-pre-wrap text-sm leading-relaxed text-white/75">
+            <p className="whitespace-pre-wrap text-sm leading-relaxed text-white/80">
               {result.summary}
             </p>
           </div>
