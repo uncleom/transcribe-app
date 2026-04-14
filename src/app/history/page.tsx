@@ -1,5 +1,7 @@
 import Link from 'next/link'
-import { createAdminClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
+import { createServerClient } from '@/lib/supabase/server'
+import LogoutButton from '@/components/LogoutButton'
 import type { TranscriptionStatus } from '@/types'
 
 function formatDuration(secs: number | null): string | null {
@@ -25,11 +27,15 @@ const STATUS: Record<TranscriptionStatus, { label: string; className: string }> 
 }
 
 export default async function HistoryPage() {
-  const admin = createAdminClient()
+  const supabase = await createServerClient()
 
-  const { data: transcriptions } = await admin
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const { data: transcriptions } = await supabase
     .from('transcriptions')
     .select('id, file_name, language, duration_seconds, status, created_at')
+    .eq('user_id', user.id)
     .order('created_at', { ascending: false })
 
   return (
@@ -38,21 +44,24 @@ export default async function HistoryPage() {
         <Link href="/" className="text-sm font-semibold text-white hover:text-white/80 transition">
           Transcribe
         </Link>
-        <span className="text-sm text-white/40">History</span>
+        <div className="flex items-center gap-4">
+          <span className="text-sm text-white/40">История</span>
+          <LogoutButton />
+        </div>
       </header>
 
       <main className="flex-1 px-4 py-10">
         <div className="mx-auto max-w-2xl">
-          <h1 className="mb-6 text-xl font-semibold text-white">History</h1>
+          <h1 className="mb-6 text-xl font-semibold text-white">История</h1>
 
           {!transcriptions?.length ? (
             <div className="rounded-xl border border-white/8 py-20 text-center">
-              <p className="text-sm text-white/30">No transcriptions yet</p>
+              <p className="text-sm text-white/30">Нет транскрипций</p>
               <Link
                 href="/"
                 className="mt-3 inline-block text-sm text-white/50 underline hover:text-white/80 transition"
               >
-                Upload your first file
+                Загрузить первый файл
               </Link>
             </div>
           ) : (
@@ -67,7 +76,6 @@ export default async function HistoryPage() {
                       href={`/transcription/${t.id}`}
                       className="group -mx-3 flex items-center gap-4 rounded-lg px-3 py-4 transition hover:bg-white/[0.03]"
                     >
-                      {/* File name + date */}
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-medium text-white/85 transition group-hover:text-white">
                           {t.file_name}
@@ -77,7 +85,6 @@ export default async function HistoryPage() {
                         </p>
                       </div>
 
-                      {/* Metadata pills */}
                       <div className="flex flex-shrink-0 items-center gap-2">
                         {t.language && (
                           <span className="rounded-full bg-white/8 px-2.5 py-0.5 text-xs font-medium uppercase tracking-wide text-white/50">
