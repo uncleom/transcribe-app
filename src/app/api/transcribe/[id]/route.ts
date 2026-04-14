@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
 import { checkTranscriptionStatus, normaliseResult } from '@/lib/gladia'
 import { summariseTranscript } from '@/lib/groq'
+import { adjustCredits, refundCredits, getClientIp, type CreditSubject } from '@/lib/credits'
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
@@ -12,13 +13,18 @@ export async function GET(
 
   const { data, error } = await admin
     .from('transcriptions')
-    .select('id, file_name, status, result, gladia_result_url, language')
+    .select('id, file_name, status, result, gladia_result_url, language, user_id, reserved_seconds')
     .eq('id', id)
     .single()
 
   if (error || !data) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
   }
+
+  // Determine credit subject from stored user_id or request IP
+  const subject: CreditSubject = data.user_id
+    ? { type: 'user', id: data.user_id }
+    : { type: 'anon', ip: getClientIp(req) }
 
   // Already in terminal state — return stored data
   if (data.status === 'done' || data.status === 'error') {
@@ -30,7 +36,7 @@ export async function GET(
     })
   }
 
-  // Still in-flight — ping Gladia once to get latest status
+  // Still in-flight — ping Gladia once
   if (data.gladia_result_url) {
     try {
       const gladiaStatus = await checkTranscriptionStatus(data.gladia_result_url)
@@ -38,7 +44,6 @@ export async function GET(
       if (gladiaStatus.status === 'done') {
         const result = normaliseResult(gladiaStatus)
 
-        // Generate summary (best-effort — don't fail the whole request)
         try {
           result.summary = await summariseTranscript(result.full_transcript, result.language)
         } catch (err) {
@@ -55,6 +60,13 @@ export async function GET(
           })
           .eq('id', id)
 
+        // Adjust credits: reserved hint → actual Gladia duration
+        const reserved = data.reserved_seconds ?? Math.ceil(result.duration)
+        const actual = Math.ceil(result.duration)
+        adjustCredits(subject, reserved, actual).catch((err) =>
+          console.error('adjustCredits failed:', err)
+        )
+
         return NextResponse.json({
           id: data.id,
           file_name: data.file_name,
@@ -66,6 +78,14 @@ export async function GET(
       if (gladiaStatus.status === 'error') {
         await admin.from('transcriptions').update({ status: 'error' }).eq('id', id)
 
+        // Refund reserved seconds
+        const reserved = data.reserved_seconds ?? 0
+        if (reserved > 0) {
+          refundCredits(subject, reserved).catch((err) =>
+            console.error('refundCredits failed:', err)
+          )
+        }
+
         return NextResponse.json({
           id: data.id,
           file_name: data.file_name,
@@ -75,7 +95,6 @@ export async function GET(
       }
     } catch (err) {
       console.error('Gladia status check error:', err)
-      // Fall through — return current DB status
     }
   }
 
