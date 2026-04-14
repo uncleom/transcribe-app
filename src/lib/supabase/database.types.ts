@@ -8,18 +8,24 @@ export interface Database {
           id: string
           email: string
           display_name: string | null
+          credits_seconds: number
+          is_unlimited: boolean
           created_at: string
         }
         Insert: {
           id: string
           email: string
           display_name?: string | null
+          credits_seconds?: number
+          is_unlimited?: boolean
           created_at?: string
         }
         Update: {
           id?: string
           email?: string
           display_name?: string | null
+          credits_seconds?: number
+          is_unlimited?: boolean
           created_at?: string
         }
         Relationships: []
@@ -35,6 +41,7 @@ export interface Database {
           status: TranscriptionStatus
           result: TranscriptionResult | null
           gladia_result_url: string | null
+          reserved_seconds: number | null
           created_at: string
         }
         Insert: {
@@ -47,6 +54,7 @@ export interface Database {
           status?: TranscriptionStatus
           result?: TranscriptionResult | null
           gladia_result_url?: string | null
+          reserved_seconds?: number | null
           created_at?: string
         }
         Update: {
@@ -59,13 +67,57 @@ export interface Database {
           status?: TranscriptionStatus
           result?: TranscriptionResult | null
           gladia_result_url?: string | null
+          reserved_seconds?: number | null
           created_at?: string
+        }
+        Relationships: []
+      }
+      anonymous_usage: {
+        Row: {
+          ip: string
+          used_seconds: number
+          updated_at: string
+        }
+        Insert: {
+          ip: string
+          used_seconds?: number
+          updated_at?: string
+        }
+        Update: {
+          ip?: string
+          used_seconds?: number
+          updated_at?: string
         }
         Relationships: []
       }
     }
     Views: Record<string, never>
-    Functions: Record<string, never>
+    Functions: {
+      reserve_user_credits: {
+        Args: { p_user_id: string; p_seconds: number }
+        Returns: boolean
+      }
+      reserve_anon_credits: {
+        Args: { p_ip: string; p_seconds: number }
+        Returns: boolean
+      }
+      adjust_user_credits: {
+        Args: { p_user_id: string; p_reserved: number; p_actual: number }
+        Returns: undefined
+      }
+      adjust_anon_credits: {
+        Args: { p_ip: string; p_reserved: number; p_actual: number }
+        Returns: undefined
+      }
+      refund_user_credits: {
+        Args: { p_user_id: string; p_reserved: number }
+        Returns: undefined
+      }
+      refund_anon_credits: {
+        Args: { p_ip: string; p_reserved: number }
+        Returns: undefined
+      }
+    }
     Enums: Record<string, never>
   }
 }
