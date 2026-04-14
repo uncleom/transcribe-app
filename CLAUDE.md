@@ -32,9 +32,31 @@ next-pwa (Web Share Target)
 - Mobile-first
 
 ## Структура БД
-profiles: id, email, display_name, created_at
-transcriptions: id, user_id, file_name, file_url,
-  duration_seconds, language, status, result (jsonb), created_at
+profiles: id, email, display_name, credits_seconds (DEFAULT 1200), is_unlimited (DEFAULT false), created_at
+transcriptions: id, user_id (nullable), file_name, file_url,
+  duration_seconds, language, status, result (jsonb),
+  gladia_result_url, reserved_seconds, created_at
+anonymous_usage: ip (PK), used_seconds, updated_at
+
+## Система кредитов
+- Аноним: лимит 180 сек по IP (таблица anonymous_usage)
+- Auth: credits_seconds остаток (стартовый подарок 1200 сек = 20 мин)
+- is_unlimited = true → проверки не нужны
+- Паттерн: резервирование при загрузке → корректировка по факту Gladia
+- Атомарность: Postgres RPC-функции (reserve/adjust/refund для user и anon)
+- src/lib/credits.ts — единственное место с кредитной логикой
+- UploadZone: detectDuration через HTMLVideoElement, передаёт duration_hint в FormData
+
+## Авторизация
+- Google OAuth через Supabase Auth
+- Cookie-сессии через @supabase/ssr
+- src/proxy.ts — refresh сессий (Next.js 16.2)
+- /login — страница входа, /auth/callback — OAuth обработчик
+- /history защищена (redirect на /login)
+
+## Pending
+- Миграция supabase/migrations/20260414000000_credits.sql — применить в Supabase Dashboard
+- /billing страница — не создана (ссылка есть в UploadZone)
 
 ## Env переменные
 NEXT_PUBLIC_SUPABASE_URL
