@@ -22,6 +22,7 @@ export interface Database {
           display_name?: string | null
           created_at?: string
         }
+        Relationships: []
       }
       transcriptions: {
         Row: {
@@ -50,7 +51,7 @@ export interface Database {
         }
         Update: {
           id?: string
-          user_id?: string
+          user_id?: string | null
           file_name?: string
           file_url?: string
           duration_seconds?: number | null
@@ -60,6 +61,7 @@ export interface Database {
           gladia_result_url?: string | null
           created_at?: string
         }
+        Relationships: []
       }
     }
     Views: Record<string, never>

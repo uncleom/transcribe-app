@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createAdminClient } from '@/lib/supabase/server'
+import { createAdminClient, createServerClient } from '@/lib/supabase/server'
 import { uploadAudio, startTranscription } from '@/lib/gladia'
 
 const ALLOWED_MIME_TYPES = new Set([
@@ -42,6 +42,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'File exceeds 500 MB limit' }, { status: 413 })
   }
 
+  // --- Resolve current user (optional — anonymous upload is allowed) ---
+  const supabase = await createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
   const admin = createAdminClient()
 
   // --- Upload to Supabase Storage ---
@@ -67,6 +71,7 @@ export async function POST(req: NextRequest) {
       file_name: file.name,
       file_url: publicUrl,
       status: 'pending',
+      ...(user ? { user_id: user.id } : {}),
     })
     .select('id')
     .single()
