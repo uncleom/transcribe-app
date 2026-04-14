@@ -6,11 +6,20 @@ interface Props {
   onUploadComplete: (id: string) => void
 }
 
-type State = 'idle' | 'dragging' | 'selected' | 'uploading' | 'error'
+type State =
+  | 'idle'
+  | 'dragging'
+  | 'detecting'       // measuring duration
+  | 'checking'        // calling /api/credits
+  | 'selected'        // ready to upload
+  | 'insufficient'    // not enough credits
+  | 'uploading'
+  | 'error'
 
 export default function UploadZone({ onUploadComplete }: Props) {
   const [state, setState] = useState<State>('idle')
   const [file, setFile] = useState<File | null>(null)
+  const [durationSecs, setDurationSecs] = useState<number | null>(null)
   const [progress, setProgress] = useState(0)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -35,11 +44,33 @@ export default function UploadZone({ onUploadComplete }: Props) {
     if (f) selectFile(f)
   }
 
-  function selectFile(f: File) {
+  async function selectFile(f: File) {
     setFile(f)
-    setState('selected')
+    setState('detecting')
     setErrorMsg(null)
-    setProgress(0)
+    setDurationSecs(null)
+
+    let duration: number | null = null
+    try {
+      duration = await detectDuration(f)
+      setDurationSecs(duration)
+    } catch {
+      // Duration detection failed — proceed without it, server uses fallback
+    }
+
+    setState('checking')
+    try {
+      const durationParam = duration != null ? `?duration=${Math.ceil(duration)}` : ''
+      const res = await fetch(`/api/credits${durationParam}`)
+      if (res.ok) {
+        const json: { sufficient: boolean } = await res.json()
+        setState(json.sufficient ? 'selected' : 'insufficient')
+        return
+      }
+    } catch {
+      // If credits check fails, allow upload (graceful degradation)
+    }
+    setState('selected')
   }
 
   function startUpload() {
@@ -50,6 +81,9 @@ export default function UploadZone({ onUploadComplete }: Props) {
 
     const form = new FormData()
     form.append('file', file)
+    if (durationSecs != null) {
+      form.append('duration_hint', String(Math.ceil(durationSecs)))
+    }
 
     const xhr = new XMLHttpRequest()
 
@@ -60,7 +94,7 @@ export default function UploadZone({ onUploadComplete }: Props) {
     })
 
     xhr.addEventListener('load', () => {
-      let json: { id?: string; error?: string }
+      let json: { id?: string; error?: string; code?: string }
       try {
         json = JSON.parse(xhr.responseText)
       } catch {
@@ -71,6 +105,8 @@ export default function UploadZone({ onUploadComplete }: Props) {
 
       if (xhr.status === 202 && json.id) {
         onUploadComplete(json.id)
+      } else if (xhr.status === 402 || json.code === 'credits_insufficient') {
+        setState('insufficient')
       } else {
         setErrorMsg(json.error ?? `Upload failed (${xhr.status})`)
         setState('error')
@@ -88,6 +124,7 @@ export default function UploadZone({ onUploadComplete }: Props) {
 
   const isDragging = state === 'dragging'
   const isUploading = state === 'uploading'
+  const isDetecting = state === 'detecting' || state === 'checking'
 
   return (
     <div className="w-full">
@@ -96,8 +133,10 @@ export default function UploadZone({ onUploadComplete }: Props) {
         role="button"
         tabIndex={0}
         aria-label="Upload audio or video file"
-        onClick={() => !isUploading && inputRef.current?.click()}
-        onKeyDown={(e) => e.key === 'Enter' && !isUploading && inputRef.current?.click()}
+        onClick={() => !isUploading && !isDetecting && inputRef.current?.click()}
+        onKeyDown={(e) =>
+          e.key === 'Enter' && !isUploading && !isDetecting && inputRef.current?.click()
+        }
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
@@ -105,12 +144,12 @@ export default function UploadZone({ onUploadComplete }: Props) {
           'relative flex flex-col items-center justify-center gap-4',
           'rounded-2xl border-2 border-dashed px-8 py-16 text-center',
           'transition-all duration-150 select-none outline-none',
-          isUploading
+          isUploading || isDetecting
             ? 'cursor-default border-white/10'
             : 'cursor-pointer focus-visible:ring-2 focus-visible:ring-[#e2ff00]/50',
           isDragging
             ? 'border-[#e2ff00] bg-[#e2ff00]/5'
-            : !isUploading
+            : !isUploading && !isDetecting
             ? 'border-white/20 hover:border-white/35 hover:bg-white/[0.02]'
             : 'border-white/10',
         ].join(' ')}
@@ -121,7 +160,7 @@ export default function UploadZone({ onUploadComplete }: Props) {
           accept="audio/*,video/*"
           className="hidden"
           onChange={handleChange}
-          disabled={isUploading}
+          disabled={isUploading || isDetecting}
         />
 
         {/* Icon */}
@@ -131,17 +170,13 @@ export default function UploadZone({ onUploadComplete }: Props) {
             isDragging ? 'bg-[#e2ff00]/15' : 'bg-white/8',
           ].join(' ')}
         >
-          <UploadIcon
-            className={isDragging ? 'text-[#e2ff00]' : 'text-white/40'}
-          />
+          <UploadIcon className={isDragging ? 'text-[#e2ff00]' : 'text-white/40'} />
         </div>
 
         {/* Labels */}
         {!file ? (
           <>
-            <p className="font-medium text-white/80">
-              Drop audio or video here
-            </p>
+            <p className="font-medium text-white/80">Drop audio or video here</p>
             <p className="text-sm text-white/35">
               or click to browse · MP3, MP4, WAV, M4A, OGG, FLAC · up to 500 MB
             </p>
@@ -149,7 +184,16 @@ export default function UploadZone({ onUploadComplete }: Props) {
         ) : (
           <div className="flex flex-col items-center gap-1">
             <p className="max-w-xs truncate font-medium text-white">{file.name}</p>
-            <p className="text-sm text-white/40">{formatBytes(file.size)}</p>
+            <div className="flex items-center gap-2 text-sm text-white/40">
+              <span>{formatBytes(file.size)}</span>
+              {durationSecs != null && (
+                <>
+                  <span className="text-white/20">·</span>
+                  <span>{formatDuration(durationSecs)}</span>
+                </>
+              )}
+              {isDetecting && <span className="animate-pulse">анализ…</span>}
+            </div>
           </div>
         )}
       </div>
@@ -175,6 +219,22 @@ export default function UploadZone({ onUploadComplete }: Props) {
         <p className="mt-3 text-sm text-red-400">{errorMsg}</p>
       )}
 
+      {/* Insufficient credits */}
+      {state === 'insufficient' && (
+        <div className="mt-4 rounded-xl border border-yellow-400/20 bg-yellow-400/5 px-4 py-3">
+          <p className="text-sm text-yellow-300">
+            Недостаточно кредитов для этого файла
+            {durationSecs != null && ` (${formatDuration(durationSecs)})`}.
+          </p>
+          <a
+            href="/billing"
+            className="mt-2 inline-block text-sm font-medium text-[#e2ff00] hover:opacity-80 transition"
+          >
+            Пополнить баланс →
+          </a>
+        </div>
+      )}
+
       {/* Transcribe button */}
       {state === 'selected' && (
         <button
@@ -198,6 +258,44 @@ export default function UploadZone({ onUploadComplete }: Props) {
   )
 }
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+/** Detect audio/video duration via HTMLVideoElement (works for both media types). */
+function detectDuration(file: File): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file)
+    const el = document.createElement('video')
+    el.preload = 'metadata'
+
+    el.onloadedmetadata = () => {
+      URL.revokeObjectURL(url)
+      if (isFinite(el.duration) && el.duration > 0) {
+        resolve(el.duration)
+      } else {
+        reject(new Error('Could not determine duration'))
+      }
+    }
+
+    el.onerror = () => {
+      URL.revokeObjectURL(url)
+      reject(new Error('Media load error'))
+    }
+
+    el.src = url
+  })
+}
+
+function formatDuration(secs: number): string {
+  const m = Math.floor(secs / 60)
+  const s = Math.floor(secs % 60)
+  return `${m}:${s.toString().padStart(2, '0')}`
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
 function UploadIcon({ className }: { className?: string }) {
   return (
     <svg
@@ -216,9 +314,4 @@ function UploadIcon({ className }: { className?: string }) {
       <line x1="12" y1="3" x2="12" y2="15" />
     </svg>
   )
-}
-
-function formatBytes(bytes: number): string {
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
