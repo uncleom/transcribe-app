@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient, createServerClient } from '@/lib/supabase/server'
 import { uploadAudio, startTranscription } from '@/lib/gladia'
+import {
+  reserveCredits,
+  refundCredits,
+  CreditsInsufficientError,
+  getClientIp,
+  type CreditSubject,
+} from '@/lib/credits'
 
 const ALLOWED_MIME_TYPES = new Set([
   'audio/mpeg',
@@ -42,9 +49,33 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'File exceeds 500 MB limit' }, { status: 413 })
   }
 
-  // --- Resolve current user (optional — anonymous upload is allowed) ---
+  // --- Parse duration hint ---
+  const durationHintRaw = formData.get('duration_hint')
+  const durationHint = durationHintRaw
+    ? Math.max(1, Math.round(Number(durationHintRaw)))
+    : 60 // conservative fallback if client didn't send
+
+  // --- Resolve identity ---
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
+
+  const subject: CreditSubject = user
+    ? { type: 'user', id: user.id }
+    : { type: 'anon', ip: getClientIp(req) }
+
+  // --- Reserve credits ---
+  try {
+    await reserveCredits(subject, durationHint)
+  } catch (err) {
+    if (err instanceof CreditsInsufficientError) {
+      return NextResponse.json(
+        { error: 'Insufficient credits', code: 'credits_insufficient' },
+        { status: 402 }
+      )
+    }
+    console.error('Reserve credits error:', err)
+    return NextResponse.json({ error: 'Failed to reserve credits' }, { status: 500 })
+  }
 
   const admin = createAdminClient()
 
@@ -57,6 +88,7 @@ export async function POST(req: NextRequest) {
 
   if (storageError) {
     console.error('Storage upload error:', storageError)
+    await refundCredits(subject, durationHint)
     return NextResponse.json({ error: 'Failed to store file' }, { status: 500 })
   }
 
@@ -71,6 +103,7 @@ export async function POST(req: NextRequest) {
       file_name: file.name,
       file_url: publicUrl,
       status: 'pending',
+      reserved_seconds: durationHint,
       ...(user ? { user_id: user.id } : {}),
     })
     .select('id')
@@ -78,12 +111,13 @@ export async function POST(req: NextRequest) {
 
   if (insertError || !transcription) {
     console.error('DB insert error:', insertError)
+    await refundCredits(subject, durationHint)
     return NextResponse.json({ error: 'Failed to create transcription record' }, { status: 500 })
   }
 
   const transcriptionId = transcription.id
 
-  // --- Start Gladia job (upload + kick off) ---
+  // --- Start Gladia job ---
   try {
     const gladiaAudioUrl = await uploadAudio(file, file.name)
     const resultUrl = await startTranscription({
@@ -97,10 +131,8 @@ export async function POST(req: NextRequest) {
       .eq('id', transcriptionId)
   } catch (err) {
     console.error('Gladia start error:', err)
-    await admin
-      .from('transcriptions')
-      .update({ status: 'error' })
-      .eq('id', transcriptionId)
+    await admin.from('transcriptions').update({ status: 'error' }).eq('id', transcriptionId)
+    await refundCredits(subject, durationHint)
 
     return NextResponse.json(
       { error: 'Failed to start transcription job' },
