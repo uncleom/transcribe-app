@@ -1,4 +1,15 @@
-# CLAUDE.md — TranscribeApp
+# CLAUDE.md — transcribe-app
+
+## Старт сессии
+1. Найди контекст в mempalace: `mempalace_search("transcribe-app")`
+2. Прочитай этот файл
+3. Скажи пользователю, на чём остановились в прошлый раз
+
+## Команда "сохрани"
+Когда пользователь пишет **"сохрани"**:
+1. Сохрани ключевые решения/факты сессии в mempalace (`mempalace_kg_add` или `mempalace_add_drawer`)
+2. Обнови этот файл (CLAUDE.md) если появились новые правила или структурные изменения
+3. Сделай `git add -A && git commit` с описательным сообщением на русском
 
 ## Что это
 PWA для мультиязычной транскрипции аудио/видео с разделением спикеров.
@@ -35,3 +46,8 @@ NEXT_PUBLIC_APP_URL
 
 ## Команды
 npm run dev / build / lint
+
+## Память (MemPalace)
+- Старт: `mempalace_search("transcribe-app")` — найти предыдущий контекст
+- "сохрани": `mempalace_kg_add` / `mempalace_add_drawer` → обновить CLAUDE.md → git commit
+- При compact: сохрани важный контекст до сжатия
