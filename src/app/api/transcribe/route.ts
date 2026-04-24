@@ -24,6 +24,17 @@ const ALLOWED_MIME_TYPES = new Set([
 
 const MAX_FILE_SIZE = 500 * 1024 * 1024 // 500 MB
 
+// Sanitize uploaded filename: strip path, allow only safe chars, bound length.
+function sanitizeFilename(name: string): string {
+  const base = name.split(/[\\/]/).pop() || 'file'
+  return (
+    base
+      .replace(/[^a-zA-Z0-9._-]/g, '_')
+      .replace(/^\.+/, '_')
+      .slice(0, 100) || 'file'
+  )
+}
+
 export async function POST(req: NextRequest) {
   // --- Parse form data ---
   let formData: FormData
@@ -79,8 +90,9 @@ export async function POST(req: NextRequest) {
 
   const admin = createAdminClient()
 
-  // --- Upload to Supabase Storage ---
-  const storagePath = `uploads/${Date.now()}_${file.name}`
+  // --- Upload to Supabase Storage (private bucket — see SPECIFICATION §4.1) ---
+  const safeName = sanitizeFilename(file.name)
+  const storagePath = `uploads/${Date.now()}_${safeName}`
 
   const { error: storageError } = await admin.storage
     .from('audio-files')
@@ -92,16 +104,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Failed to store file' }, { status: 500 })
   }
 
-  const {
-    data: { publicUrl },
-  } = admin.storage.from('audio-files').getPublicUrl(storagePath)
-
+  // Store only the storage path; signed URLs are minted on demand by owner-checked endpoints.
   // --- Create transcription record ---
   const { data: transcription, error: insertError } = await admin
     .from('transcriptions')
     .insert({
-      file_name: file.name,
-      file_url: publicUrl,
+      file_name: safeName,
+      file_url: storagePath,
       status: 'pending',
       reserved_seconds: durationHint,
       ...(user ? { user_id: user.id } : {}),
@@ -119,7 +128,7 @@ export async function POST(req: NextRequest) {
 
   // --- Start Gladia job ---
   try {
-    const gladiaAudioUrl = await uploadAudio(file, file.name)
+    const gladiaAudioUrl = await uploadAudio(file, safeName)
     const resultUrl = await startTranscription({
       audio_url: gladiaAudioUrl,
       diarization: true,

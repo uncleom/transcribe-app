@@ -1,14 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createAdminClient } from '@/lib/supabase/server'
+import { createAdminClient, createServerClient } from '@/lib/supabase/server'
 import { checkTranscriptionStatus, normaliseResult } from '@/lib/gladia'
 import { summariseTranscript } from '@/lib/groq'
 import { adjustCredits, refundCredits, getClientIp, type CreditSubject } from '@/lib/credits'
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
+
+  if (!UUID_RE.test(id)) {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  }
+
   const admin = createAdminClient()
 
   const { data, error } = await admin
@@ -18,6 +25,15 @@ export async function GET(
     .single()
 
   if (error || !data) {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  }
+
+  // Owner check: auth transcriptions are bound to user_id; anon transcriptions
+  // fall back to unguessable-UUID secrecy (no IP recorded in DB schema — see AUDIT A1).
+  // Return 404 rather than 403 to avoid revealing existence.
+  const supabase = await createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (data.user_id && (!user || user.id !== data.user_id)) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
   }
 
