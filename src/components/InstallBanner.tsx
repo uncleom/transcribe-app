@@ -61,7 +61,8 @@ export default function InstallBanner() {
   const handleInstall = useCallback(async () => {
     if (!deferredPrompt) return
     await deferredPrompt.prompt()
-    await deferredPrompt.userChoice
+    const { outcome } = await deferredPrompt.userChoice
+    if (outcome === 'dismissed') localStorage.setItem(DISMISSED_KEY, 'true')
     setDeferredPrompt(null)
     setPlatform('none')
   }, [deferredPrompt])
