@@ -1,26 +1,39 @@
-'use client'
-
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import UploadZone from '@/components/UploadZone'
+import { createServerClient } from '@/lib/supabase/server'
+import HomeContent from '@/components/HomeContent'
+import LogoutButton from '@/components/LogoutButton'
 
-export default function HomePage() {
-  const router = useRouter()
-
-  function handleUploadComplete(id: string) {
-    router.push(`/transcription/${id}`)
-  }
+export default async function HomePage() {
+  const supabase = await createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
 
   return (
     <>
       <header className="flex items-center justify-between border-b border-white/[0.06] px-4 py-4">
         <span className="text-sm font-semibold text-white">Transcribe</span>
-        <Link
-          href="/history"
-          className="text-sm text-white/50 transition hover:text-white"
-        >
-          History
-        </Link>
+        <div className="flex items-center gap-4">
+          {user ? (
+            <>
+              <span className="hidden text-xs text-white/35 sm:block truncate max-w-[180px]">
+                {user.email}
+              </span>
+              <Link
+                href="/history"
+                className="text-sm text-white/50 transition hover:text-white"
+              >
+                История
+              </Link>
+              <LogoutButton />
+            </>
+          ) : (
+            <Link
+              href="/login"
+              className="text-sm text-white/50 transition hover:text-white"
+            >
+              Войти
+            </Link>
+          )}
+        </div>
       </header>
 
       <main className="flex flex-1 flex-col items-center justify-center px-4 py-16">
@@ -33,8 +46,7 @@ export default function HomePage() {
               Upload audio or video — get a transcript with speaker labels
             </p>
           </div>
-
-          <UploadZone onUploadComplete={handleUploadComplete} />
+          <HomeContent />
         </div>
       </main>
     </>
