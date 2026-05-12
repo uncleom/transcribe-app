@@ -62,9 +62,13 @@ export async function POST(req: NextRequest) {
 
   // --- Parse duration hint ---
   const durationHintRaw = formData.get('duration_hint')
-  const durationHint = durationHintRaw
-    ? Math.max(1, Math.round(Number(durationHintRaw)))
-    : 60 // conservative fallback if client didn't send
+  let durationHint = 60 // conservative fallback
+  if (durationHintRaw !== null) {
+    const parsed = Math.round(Number(durationHintRaw))
+    if (Number.isFinite(parsed) && parsed > 0 && parsed <= 14400) {
+      durationHint = parsed
+    }
+  }
 
   // --- Resolve identity ---
   const supabase = await createServerClient()

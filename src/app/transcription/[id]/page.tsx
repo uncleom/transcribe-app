@@ -37,8 +37,15 @@ export default function TranscriptionPage() {
 
   useEffect(() => {
     let cancelled = false
+    let attempts = 0
+    const MAX_ATTEMPTS = 120 // 10 min at 5s intervals
 
     async function tick() {
+      if (attempts++ >= MAX_ATTEMPTS) {
+        if (!cancelled) setFetchError('Transcription timed out — please try again')
+        return
+      }
+
       try {
         const res = await fetch(`/api/transcribe/${id}`)
         if (!res.ok) {
@@ -51,7 +58,6 @@ export default function TranscriptionPage() {
 
         setData(json)
 
-        // Keep polling until terminal state
         if (json.status !== 'done' && json.status !== 'error') {
           setTimeout(tick, 5_000)
         }
