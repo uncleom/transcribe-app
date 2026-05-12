@@ -157,7 +157,7 @@ export default function UploadZone({ onUploadComplete }: Props) {
         <input
           ref={inputRef}
           type="file"
-          accept="audio/*,video/*"
+          accept="audio/*,video/*,.mp3,.mp4,.m4a,.wav,.ogg,.opus,.flac,.aac,.webm,.mov"
           className="hidden"
           onChange={handleChange}
           disabled={isUploading || isDetecting}
