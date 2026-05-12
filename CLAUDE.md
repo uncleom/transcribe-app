@@ -98,7 +98,7 @@ anonymous_usage:  ip (PK), used_seconds, updated_at
 ## Статус
 
 ### Готово
-- ✅ Upload → Gladia → Groq pipeline
+- ✅ Upload → Gladia → Groq pipeline (файл идёт напрямую в Gladia, Supabase Storage не используется)
 - ✅ Google OAuth
 - ✅ Кредитная система (anon + auth) с atomic RPC
 - ✅ `/history`, `/transcription/[id]`
@@ -124,6 +124,12 @@ GROQ_API_KEY
 NEXT_PUBLIC_APP_URL
 ```
 (`NEXT_PUBLIC_APP_URL` пока не используется в коде — BACKLOG A7.)
+
+## Деплой
+- **URL:** https://transcribe.om-dev.uk
+- **Coolify:** coolify.om-dev.uk (Hetzner om-dev-vps 162.55.215.194)
+- **Автодеплой:** push в `main` → GitHub App `om-dev-github` → Coolify
+- **Домен продакшн:** transcribo.app (ещё не подключён)
 
 ## Команды
 ```bash
