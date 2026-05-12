@@ -104,12 +104,12 @@ anonymous_usage:  ip (PK), used_seconds, updated_at
 - ✅ `/history`, `/transcription/[id]`
 - ✅ Миграции применены
 - ✅ `/billing` страница-заглушка (визуал, без реального checkout)
-- ✅ Security-хардёнинг: владелец-check на `/api/transcribe/[id]`, санитизация filename, private storage + signed URLs
+- ✅ Security-хардёнинг: владелец-check на `/api/transcribe/[id]`, санитизация filename, private storage bucket (public=false, public read policy удалена), RLS на `anonymous_usage`, `adjustCredits`/`refundCredits` awaited
 - ✅ `.env.example` создан
 
 ### Pending (см. `.business/BACKLOG.md`)
 - 🔨 P1: реальный MercadoPago checkout + webhook (M1)
-- 🔨 P1: валидация входов UUID / duration_hint (V1)
+- 🔨 P1: валидация duration_hint числовые границы (V1, UUID уже есть)
 - 📅 P2: rate-limiting (A4), локализация UI es-AR (A10), PWA manifest + Share Target (A6), лендинг `/es` (L1), экспорт `.txt/.srt/.vtt` (E1)
 - 📅 P3: удалить `@anthropic-ai/sdk` (A8), переписать README (A9)
 
