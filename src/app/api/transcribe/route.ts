@@ -28,6 +28,26 @@ const ALLOWED_MIME_TYPES = new Set([
 
 const MAX_FILE_SIZE = 500 * 1024 * 1024 // 500 MB
 
+// iOS Safari sends empty type or application/octet-stream for M4A — fall back to extension
+const EXT_MIME: Record<string, string> = {
+  mp3: 'audio/mpeg',
+  mp4: 'video/mp4',
+  m4a: 'audio/m4a',
+  wav: 'audio/wav',
+  ogg: 'audio/ogg',
+  opus: 'audio/opus',
+  webm: 'audio/webm',
+  flac: 'audio/flac',
+  aac: 'audio/aac',
+  mov: 'video/quicktime',
+}
+
+function resolveFileType(file: File): string {
+  if (file.type && file.type !== 'application/octet-stream') return file.type
+  const ext = file.name.split('.').pop()?.toLowerCase() ?? ''
+  return EXT_MIME[ext] ?? file.type
+}
+
 function sanitizeFilename(name: string): string {
   const base = name.split(/[\\/]/).pop() || 'file'
   return (
@@ -52,9 +72,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Field "file" is required' }, { status: 400 })
   }
 
-  if (!ALLOWED_MIME_TYPES.has(file.type)) {
+  const fileType = resolveFileType(file)
+  if (!ALLOWED_MIME_TYPES.has(fileType)) {
     return NextResponse.json(
-      { error: `Unsupported file type: ${file.type}` },
+      { error: `Unsupported file type: ${fileType || file.name}` },
       { status: 422 }
     )
   }
