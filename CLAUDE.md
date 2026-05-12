@@ -56,7 +56,9 @@ Next.js 16.2.3 App Router · TypeScript · Tailwind 4
 Supabase (auth, storage, postgres RLS)
 Gladia API v2 (транскрипция + diarization)
 Groq API (резюме — модель llama-3.3-70b-versatile)
-next-pwa (**в deps, но не сконфигурирован — BACKLOG A6**)
+next-pwa 5.6.0 (сконфигурирован, SW генерируется через `next build --webpack`)
+
+> **Важно:** `npm run build` использует флаг `--webpack` (не Turbopack) — это обязательно для next-pwa. Без флага `sw.js` не генерируется.
 
 ## Правила работы с кодом
 - App Router, Server Components по умолчанию
@@ -106,12 +108,12 @@ anonymous_usage:  ip (PK), used_seconds, updated_at
 - ✅ `/billing` страница-заглушка (визуал, без реального checkout)
 - ✅ Security-хардёнинг: владелец-check на `/api/transcribe/[id]`, санитизация filename, private storage bucket (public=false, public read policy удалена), RLS на `anonymous_usage`, `adjustCredits`/`refundCredits` awaited
 - ✅ `.env.example` создан
+- ✅ PWA: manifest.json, иконки, service worker, InstallBanner (Android + iOS) — A6
 
 ### Pending (см. `.business/BACKLOG.md`)
 - 🔨 P1: реальный MercadoPago checkout + webhook (M1)
-- 🔨 P1: валидация duration_hint числовые границы (V1, UUID уже есть)
-- 📅 P2: rate-limiting (A4), локализация UI es-AR (A10), PWA manifest + Share Target (A6), лендинг `/es` (L1), экспорт `.txt/.srt/.vtt` (E1)
-- 📅 P3: удалить `@anthropic-ai/sdk` (A8), переписать README (A9)
+- 📅 P2: rate-limiting (A4), локализация UI es-AR (A10), iOS Shortcut с API-токеном (B2), лендинг `/es` (L1), экспорт `.txt/.srt/.vtt` (E1)
+- 📅 P3: удалить `@anthropic-ai/sdk` (A8), переписать README (A9), batch upload (B1), мигрировать next-pwa → @ducanh2912/next-pwa (A15)
 
 ## Env переменные
 Полный список с описаниями — `.env.example`. Краткий:

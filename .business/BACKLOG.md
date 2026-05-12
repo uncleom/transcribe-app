@@ -20,11 +20,13 @@
 - [x] **A14** Удаление файла из Storage после завершения транскрипции (done + error) → закрыто 2026-05-12.
 - [ ] **A4** Rate-limiting на `/api/transcribe` (IP + user-scope, Upstash Redis) — AUDIT A4.
 - [ ] **A5** getClientIp: учесть `cf-connecting-ip`, `x-real-ip` в приоритете — AUDIT A5.
-- [ ] **A6** PWA: manifest.json + service worker + Web Share Target action — AUDIT A6, промт структура.
+- [x] **A6** PWA: manifest.json + service worker + InstallBanner (Android + iOS) → закрыто 2026-05-12.
 - [ ] **A10** Локализация UI: `es-AR` primary, `pt-BR` secondary, `en` fallback (next-intl или локальный словарь) — AUDIT A10, MARKET_RESEARCH §3.
 - [ ] **L1** Лендинг `/es` для smoke-test трафика — MARKET_RESEARCH §4.1.
 - [ ] **L2** `brand/landing_copy_es.md` → финальный текст после вычитки Workana-редактором — MARKET_RESEARCH §6.
 - [ ] **E1** Экспорт транскрипции: `.txt`, `.srt`, `.vtt` — SPECIFICATION §3.
+- [ ] **B2** iOS Shortcut с API-токеном: `/api/shortcut-upload` endpoint + shortcut_tokens таблица + iCloud Shortcut → zero-tap загрузка файла с iOS.
+- [ ] **B1** Batch upload: очередь файлов, параллельные jobs в Gladia, UI прогресса.
 
 ## P3 — позже / опционально
 
