@@ -17,7 +17,7 @@ PWA для мультиязычной транскрипции аудио/вид
 Ориентирован на LATAM-рынок (es-AR, pt-BR primary). Монетизация — PAYG через MercadoPago.
 
 **Полная спецификация продукта — в [SPECIFICATION.md](./SPECIFICATION.md).**
-**Позиционирование и USP — в [brand/positioning.md](./brand/positioning.md).**
+**Позиционирование и USP — в [.brand/positioning.md](./.brand/positioning.md).**
 **Маркетинговые данные — в [.business/MARKET_RESEARCH.md](./.business/MARKET_RESEARCH.md).**
 
 ## Структура папок
@@ -38,7 +38,7 @@ transcribe-app/
 │   ├── BACKLOG.md          ← приоритизированные задачи (P1/P2/P3)
 │   ├── DECISIONS.md        ← журнал ключевых решений
 │   └── VALIDATION_PLAN.md  ← план smoke-test без интервью
-├── brand/                  ← маркетинг
+├── .brand/                  ← маркетинг
 │   ├── positioning.md      ← USP, персоны, tone of voice
 │   └── landing_copy_es.md  ← испанский лендинг (draft, нужна вычитка)
 ├── docs/                   ← техническая документация
@@ -137,11 +137,11 @@ Setup с нуля — см. [docs/SETUP.md](./docs/SETUP.md).
 
 1. Начни с `mempalace_search("transcribe-app")` и чтения этого файла.
 2. Если задача в P1 из `.business/BACKLOG.md` — бери её первой.
-3. При любом продуктовом решении — сверяйся с `brand/positioning.md` (что мы делаем / не делаем).
+3. При любом продуктовом решении — сверяйся с `.brand/positioning.md` (что мы делаем / не делаем).
 4. При монетизационных решениях — `.business/DECISIONS.md` + `SPECIFICATION.md §5`.
 5. При изменении API / flow — обновляй `SPECIFICATION.md`.
 6. При добавлении задач — пиши в `.business/BACKLOG.md`, не в коде и не в комментариях.
-7. **Не создавай новые .md-документы в корне.** Клади в `.business/`, `brand/`, `docs/`.
+7. **Не создавай новые .md-документы в корне.** Клади в `.business/`, `.brand/`, `docs/`.
 
 ## Память (MemPalace)
 - Старт: `mempalace_search("transcribe-app")` — найти предыдущий контекст
