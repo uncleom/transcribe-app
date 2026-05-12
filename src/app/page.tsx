@@ -15,7 +15,7 @@ export default async function HomePage() {
         <div className="flex items-center gap-4">
           {user ? (
             <>
-              <span className="hidden text-xs text-white/35 sm:block truncate max-w-[180px]">
+              <span className="text-xs text-white/35 truncate max-w-[120px] sm:max-w-[180px]">
                 {user.email}
               </span>
               <Link
