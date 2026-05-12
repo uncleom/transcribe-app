@@ -11,20 +11,39 @@ interface TranscriptionData {
   result: TranscriptionResult | null
 }
 
-// Colours cycling by speaker index
+interface MergedUtterance {
+  speaker: number
+  text: string
+  start: number
+  end: number
+}
+
 const SPEAKER_COLORS = [
-  '#e2ff00', // yellow — accent
-  '#60a5fa', // blue
-  '#f472b6', // pink
-  '#34d399', // green
-  '#fb923c', // orange
-  '#a78bfa', // purple
+  '#e2ff00',
+  '#60a5fa',
+  '#f472b6',
+  '#34d399',
+  '#fb923c',
+  '#a78bfa',
 ]
 
 function formatTime(secs: number): string {
   const m = Math.floor(secs / 60)
   const s = Math.floor(secs % 60)
   return `${m}:${s.toString().padStart(2, '0')}`
+}
+
+function mergeConsecutive(utterances: TranscriptionResult['utterances']): MergedUtterance[] {
+  return utterances.reduce<MergedUtterance[]>((acc, u) => {
+    const last = acc[acc.length - 1]
+    if (last && last.speaker === u.speaker) {
+      last.text += ' ' + u.text
+      last.end = u.end
+    } else {
+      acc.push({ speaker: u.speaker, text: u.text, start: u.start, end: u.end })
+    }
+    return acc
+  }, [])
 }
 
 export default function TranscriptionPage() {
@@ -34,11 +53,12 @@ export default function TranscriptionPage() {
   const [data, setData] = useState<TranscriptionData | null>(null)
   const [fetchError, setFetchError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
+  const [view, setView] = useState<'clean' | 'detailed'>('clean')
 
   useEffect(() => {
     let cancelled = false
     let attempts = 0
-    const MAX_ATTEMPTS = 120 // 10 min at 5s intervals
+    const MAX_ATTEMPTS = 120
 
     async function tick() {
       if (attempts++ >= MAX_ATTEMPTS) {
@@ -127,10 +147,19 @@ export default function TranscriptionPage() {
 
   // ── Done ─────────────────────────────────────────────────────
   const { result } = data
+  const merged = mergeConsecutive(result.utterances)
 
   return (
     <main className="flex-1 px-4 py-10">
       <div className="mx-auto max-w-2xl">
+
+        {/* Back link — top */}
+        <button
+          onClick={() => router.push('/')}
+          className="mb-5 flex items-center gap-1 text-sm text-white/30 transition hover:text-white/60"
+        >
+          ← New transcription
+        </button>
 
         {/* Header row */}
         <div className="mb-6 flex items-start justify-between gap-4">
@@ -138,7 +167,6 @@ export default function TranscriptionPage() {
             <h1 className="truncate text-lg font-semibold text-white">
               {data.file_name}
             </h1>
-            {/* Language + duration pills */}
             <div className="mt-2 flex flex-wrap gap-2">
               {result.language && (
                 <span className="rounded-full bg-white/8 px-3 py-1 text-xs font-medium uppercase tracking-wider text-white/60">
@@ -173,35 +201,82 @@ export default function TranscriptionPage() {
           </div>
         )}
 
-        {/* Utterances */}
-        <div className="flex flex-col gap-5">
-          {result.utterances.map((u, i) => {
-            const color = SPEAKER_COLORS[u.speaker % SPEAKER_COLORS.length]
-            return (
-              <div key={i} className="flex gap-3">
-                {/* Speaker badge */}
-                <div className="flex-shrink-0 pt-0.5">
-                  <span
-                    className="inline-block rounded-full px-2.5 py-0.5 text-[11px] font-bold text-black"
-                    style={{ backgroundColor: color }}
-                  >
-                    S{u.speaker}
-                  </span>
-                </div>
-
-                {/* Text + timestamp */}
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm leading-relaxed text-white/85">{u.text}</p>
-                  <p className="mt-1 text-xs text-white/25">
-                    {formatTime(u.start)}–{formatTime(u.end)}
-                  </p>
-                </div>
-              </div>
-            )
-          })}
+        {/* View toggle */}
+        <div className="mb-6 flex gap-1 rounded-lg bg-white/5 p-1 w-fit">
+          <button
+            onClick={() => setView('clean')}
+            className={`rounded-md px-4 py-1.5 text-sm transition ${
+              view === 'clean'
+                ? 'bg-white/12 text-white font-medium'
+                : 'text-white/40 hover:text-white/70'
+            }`}
+          >
+            Текст
+          </button>
+          <button
+            onClick={() => setView('detailed')}
+            className={`rounded-md px-4 py-1.5 text-sm transition ${
+              view === 'detailed'
+                ? 'bg-white/12 text-white font-medium'
+                : 'text-white/40 hover:text-white/70'
+            }`}
+          >
+            С таймкодами
+          </button>
         </div>
 
-        {/* Footer */}
+        {/* Utterances — clean view */}
+        {view === 'clean' && (
+          <div className="flex flex-col gap-5">
+            {merged.map((u, i) => {
+              const color = SPEAKER_COLORS[u.speaker % SPEAKER_COLORS.length]
+              return (
+                <div key={i} className="flex gap-3">
+                  <div className="flex-shrink-0 pt-0.5">
+                    <span
+                      className="inline-block rounded-full px-2.5 py-0.5 text-[11px] font-bold text-black"
+                      style={{ backgroundColor: color }}
+                    >
+                      S{u.speaker}
+                    </span>
+                  </div>
+                  <p className="min-w-0 flex-1 text-sm leading-relaxed text-white/85">
+                    {u.text}
+                  </p>
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+        {/* Utterances — detailed view */}
+        {view === 'detailed' && (
+          <div className="flex flex-col gap-5">
+            {result.utterances.map((u, i) => {
+              const color = SPEAKER_COLORS[u.speaker % SPEAKER_COLORS.length]
+              return (
+                <div key={i} className="flex gap-3">
+                  <div className="flex-shrink-0 pt-0.5">
+                    <span
+                      className="inline-block rounded-full px-2.5 py-0.5 text-[11px] font-bold text-black"
+                      style={{ backgroundColor: color }}
+                    >
+                      S{u.speaker}
+                    </span>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm leading-relaxed text-white/85">{u.text}</p>
+                    <p className="mt-1 text-xs text-white/25">
+                      {formatTime(u.start)}–{formatTime(u.end)}
+                    </p>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+        {/* Back link — bottom */}
         <div className="mt-14 text-center">
           <button
             onClick={() => router.push('/')}
