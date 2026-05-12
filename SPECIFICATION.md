@@ -2,7 +2,7 @@
 
 **Документ «что и зачем», не «как».** Для «как» — смотреть код в `src/`, миграции в `supabase/`, setup в `docs/SETUP.md`.
 
-**Версия:** v1 (2026-04-23)
+**Версия:** v1.1 (2026-05-12)
 **Связанные документы:**
 - `business/MARKET_RESEARCH.md` — рынок и стратегия
 - `business/AUDIT.md` — текущее состояние кода
@@ -109,10 +109,18 @@
 
 На MVP: только copy-to-clipboard (уже реализовано).
 
-### 3.6 Share Target (PWA — P2-задача, см. BACKLOG A6)
-- `public/manifest.json` с `share_target` action.
-- Принимает `audio/*` и `video/*` через POST на `/` с multipart formdata.
-- На клиенте — открывается UploadZone с уже прикреплённым файлом из Share.
+### 3.6 PWA — Installable (готово, A6)
+- `public/manifest.json`: name "Transcribo", display standalone, тёмная тема.
+- Service worker через next-pwa: NetworkFirst для app-shell, NetworkOnly для `/api/*`.
+- `InstallBanner` компонент: Android — нативный install prompt через `beforeinstallprompt`; iOS — инструкция "Safari → Поделиться → На экран Домой".
+- Баннер скрывается после установки (standalone mode) или закрытия (localStorage).
+
+### 3.6.1 Web Share Target (P2-задача, BACKLOG A4)
+Планируется отдельно:
+- `share_target` action в manifest.json.
+- POST `/share-target` принимает `audio/*` и `video/*` из share sheet (Android Chrome only).
+- На клиенте — UploadZone с уже прикреплённым файлом из Share.
+- iOS не поддерживает Web Share Target; iOS-решение — отдельно через Shortcut + API токен (BACKLOG B2).
 
 ### 3.7 Авторизация
 - Google OAuth через Supabase Auth.
@@ -215,12 +223,14 @@
 - ✅ Upload + transcription + summary (готово).
 - ✅ Credits system anon + auth (готово).
 - ✅ Google OAuth (готово).
-- 🔨 `/billing` заглушка (в этом спринте).
-- 🔨 Security-хардёнинг: auth-check, private storage, filename sanitize (в этом спринте).
-- 📅 Реальный MercadoPago checkout + webhook (следующий спринт — BACKLOG M1).
-- 📅 PWA manifest + Share Target (следующий спринт — BACKLOG A6).
-- 📅 Локализация UI на es-AR (следующий спринт — BACKLOG A10).
-- 📅 Экспорт `.txt/.srt/.vtt` (следующий спринт — BACKLOG E1).
+- ✅ `/billing` заглушка (готово).
+- ✅ Security-хардёнинг: auth-check, private storage, filename sanitize (готово).
+- ✅ PWA installable: manifest + SW + InstallBanner Android/iOS (готово — BACKLOG A6).
+- 🔨 Реальный MercadoPago checkout + webhook (следующий спринт — BACKLOG M1).
+- 📅 Web Share Target Android (BACKLOG A4).
+- 📅 iOS Shortcut с API-токеном (BACKLOG B2).
+- 📅 Локализация UI на es-AR (BACKLOG A10).
+- 📅 Экспорт `.txt/.srt/.vtt` (BACKLOG E1).
 
 ### 6.2 НЕ входит в MVP (явно)
 
