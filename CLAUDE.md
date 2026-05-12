@@ -3,13 +3,13 @@
 ## Старт сессии
 1. Найди контекст в mempalace: `mempalace_search("transcribe-app")`
 2. Прочитай этот файл
-3. Если сомневаешься в приоритетах — открой `business/BACKLOG.md`
+3. Если сомневаешься в приоритетах — открой `.business/BACKLOG.md`
 4. Скажи пользователю, на чём остановились в прошлый раз
 
 ## Команда "сохрани"
 Когда пользователь пишет **"сохрани"**:
 1. Сохрани ключевые решения/факты сессии в mempalace (`mempalace_kg_add` или `mempalace_add_drawer`)
-2. Обнови релевантные файлы (`CLAUDE.md` — при структурных изменениях; `business/DECISIONS.md` — при новом решении; `business/BACKLOG.md` — при изменении задач)
+2. Обнови релевантные файлы (`CLAUDE.md` — при структурных изменениях; `.business/DECISIONS.md` — при новом решении; `.business/BACKLOG.md` — при изменении задач)
 3. Сделай `git add -A && git commit` с описательным сообщением на русском
 
 ## Что это
@@ -18,7 +18,7 @@ PWA для мультиязычной транскрипции аудио/вид
 
 **Полная спецификация продукта — в [SPECIFICATION.md](./SPECIFICATION.md).**
 **Позиционирование и USP — в [brand/positioning.md](./brand/positioning.md).**
-**Маркетинговые данные — в [business/MARKET_RESEARCH.md](./business/MARKET_RESEARCH.md).**
+**Маркетинговые данные — в [.business/MARKET_RESEARCH.md](./.business/MARKET_RESEARCH.md).**
 
 ## Структура папок
 
@@ -32,7 +32,7 @@ transcribe-app/
 │   └── proxy.ts            ← Next.js 16 middleware (refresh sessions)
 ├── supabase/migrations/    ← SQL миграции (не трогать)
 ├── public/                 ← статика + PWA manifest (планируется)
-├── business/               ← бизнес-документы
+├── .business/              ← бизнес-документы
 │   ├── MARKET_RESEARCH.md  ← конкуренты, LATAM, USP, стратегия
 │   ├── AUDIT.md            ← состояние кода на момент аудита
 │   ├── BACKLOG.md          ← приоритизированные задачи (P1/P2/P3)
@@ -107,7 +107,7 @@ anonymous_usage:  ip (PK), used_seconds, updated_at
 - ✅ Security-хардёнинг: владелец-check на `/api/transcribe/[id]`, санитизация filename, private storage + signed URLs
 - ✅ `.env.example` создан
 
-### Pending (см. `business/BACKLOG.md`)
+### Pending (см. `.business/BACKLOG.md`)
 - 🔨 P1: реальный MercadoPago checkout + webhook (M1)
 - 🔨 P1: валидация входов UUID / duration_hint (V1)
 - 📅 P2: rate-limiting (A4), локализация UI es-AR (A10), PWA manifest + Share Target (A6), лендинг `/es` (L1), экспорт `.txt/.srt/.vtt` (E1)
@@ -136,12 +136,12 @@ Setup с нуля — см. [docs/SETUP.md](./docs/SETUP.md).
 ## Инструкции для следующей сессии Claude Code
 
 1. Начни с `mempalace_search("transcribe-app")` и чтения этого файла.
-2. Если задача в P1 из `business/BACKLOG.md` — бери её первой.
+2. Если задача в P1 из `.business/BACKLOG.md` — бери её первой.
 3. При любом продуктовом решении — сверяйся с `brand/positioning.md` (что мы делаем / не делаем).
-4. При монетизационных решениях — `business/DECISIONS.md` + `SPECIFICATION.md §5`.
+4. При монетизационных решениях — `.business/DECISIONS.md` + `SPECIFICATION.md §5`.
 5. При изменении API / flow — обновляй `SPECIFICATION.md`.
-6. При добавлении задач — пиши в `business/BACKLOG.md`, не в коде и не в комментариях.
-7. **Не создавай новые .md-документы в корне.** Клади в `business/`, `brand/`, `docs/`.
+6. При добавлении задач — пиши в `.business/BACKLOG.md`, не в коде и не в комментариях.
+7. **Не создавай новые .md-документы в корне.** Клади в `.business/`, `brand/`, `docs/`.
 
 ## Память (MemPalace)
 - Старт: `mempalace_search("transcribe-app")` — найти предыдущий контекст
