@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { createServerClient } from '@/lib/supabase/server'
 import HomeContent from '@/components/HomeContent'
 import LogoutButton from '@/components/LogoutButton'
+import InstallBanner from '@/components/InstallBanner'
 
 export default async function HomePage() {
   const supabase = await createServerClient()
@@ -10,7 +11,7 @@ export default async function HomePage() {
   return (
     <>
       <header className="flex items-center justify-between border-b border-white/[0.06] px-4 py-4">
-        <span className="text-sm font-semibold text-white">Transcribe</span>
+        <span className="text-sm font-semibold text-white">Transcribo</span>
         <div className="flex items-center gap-4">
           {user ? (
             <>
@@ -40,7 +41,7 @@ export default async function HomePage() {
         <div className="w-full max-w-lg">
           <div className="mb-10 text-center">
             <h1 className="text-3xl font-bold tracking-tight text-white">
-              Transcribe
+              Transcribo
             </h1>
             <p className="mt-2 text-white/45">
               Upload audio or video — get a transcript with speaker labels
@@ -49,6 +50,8 @@ export default async function HomePage() {
           <HomeContent />
         </div>
       </main>
+
+      <InstallBanner />
     </>
   )
 }
