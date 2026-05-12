@@ -79,7 +79,7 @@ export async function GET(
         // Adjust credits: reserved hint → actual Gladia duration
         const reserved = data.reserved_seconds ?? Math.ceil(result.duration)
         const actual = Math.ceil(result.duration)
-        adjustCredits(subject, reserved, actual).catch((err) =>
+        await adjustCredits(subject, reserved, actual).catch((err) =>
           console.error('adjustCredits failed:', err)
         )
 
@@ -97,7 +97,7 @@ export async function GET(
         // Refund reserved seconds
         const reserved = data.reserved_seconds ?? 0
         if (reserved > 0) {
-          refundCredits(subject, reserved).catch((err) =>
+          await refundCredits(subject, reserved).catch((err) =>
             console.error('refundCredits failed:', err)
           )
         }
