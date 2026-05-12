@@ -24,7 +24,6 @@ const ALLOWED_MIME_TYPES = new Set([
 
 const MAX_FILE_SIZE = 500 * 1024 * 1024 // 500 MB
 
-// Sanitize uploaded filename: strip path, allow only safe chars, bound length.
 function sanitizeFilename(name: string): string {
   const base = name.split(/[\\/]/).pop() || 'file'
   return (
@@ -92,30 +91,32 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Failed to reserve credits' }, { status: 500 })
   }
 
-  const admin = createAdminClient()
-
-  // --- Upload to Supabase Storage (private bucket — see SPECIFICATION §4.1) ---
   const safeName = sanitizeFilename(file.name)
-  const storagePath = `uploads/${Date.now()}_${safeName}`
 
-  const { error: storageError } = await admin.storage
-    .from('audio-files')
-    .upload(storagePath, file, { contentType: file.type, upsert: false })
-
-  if (storageError) {
-    console.error('Storage upload error:', storageError)
+  // --- Upload to Gladia and start transcription job ---
+  let gladiaAudioUrl: string
+  let resultUrl: string
+  try {
+    gladiaAudioUrl = await uploadAudio(file, safeName)
+    resultUrl = await startTranscription({
+      audio_url: gladiaAudioUrl,
+      diarization: true,
+    })
+  } catch (err) {
+    console.error('Gladia error:', err)
     await refundCredits(subject, durationHint)
-    return NextResponse.json({ error: 'Failed to store file' }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to start transcription job' }, { status: 502 })
   }
 
-  // Store only the storage path; signed URLs are minted on demand by owner-checked endpoints.
   // --- Create transcription record ---
+  const admin = createAdminClient()
   const { data: transcription, error: insertError } = await admin
     .from('transcriptions')
     .insert({
       file_name: safeName,
-      file_url: storagePath,
-      status: 'pending',
+      file_url: gladiaAudioUrl,
+      status: 'processing',
+      gladia_result_url: resultUrl,
       reserved_seconds: durationHint,
       ...(user ? { user_id: user.id } : {}),
     })
@@ -128,30 +129,5 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Failed to create transcription record' }, { status: 500 })
   }
 
-  const transcriptionId = transcription.id
-
-  // --- Start Gladia job ---
-  try {
-    const gladiaAudioUrl = await uploadAudio(file, safeName)
-    const resultUrl = await startTranscription({
-      audio_url: gladiaAudioUrl,
-      diarization: true,
-    })
-
-    await admin
-      .from('transcriptions')
-      .update({ status: 'processing', gladia_result_url: resultUrl })
-      .eq('id', transcriptionId)
-  } catch (err) {
-    console.error('Gladia start error:', err)
-    await admin.from('transcriptions').update({ status: 'error' }).eq('id', transcriptionId)
-    await refundCredits(subject, durationHint)
-
-    return NextResponse.json(
-      { error: 'Failed to start transcription job' },
-      { status: 502 }
-    )
-  }
-
-  return NextResponse.json({ id: transcriptionId, status: 'processing' }, { status: 202 })
+  return NextResponse.json({ id: transcription.id, status: 'processing' }, { status: 202 })
 }

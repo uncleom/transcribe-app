@@ -4,6 +4,7 @@ import { checkTranscriptionStatus, normaliseResult } from '@/lib/gladia'
 import { summariseTranscript } from '@/lib/groq'
 import { adjustCredits, refundCredits, getClientIp, type CreditSubject } from '@/lib/credits'
 
+
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 export async function GET(
@@ -20,7 +21,7 @@ export async function GET(
 
   const { data, error } = await admin
     .from('transcriptions')
-    .select('id, file_name, file_url, status, result, gladia_result_url, language, user_id, reserved_seconds')
+    .select('id, file_name, status, result, gladia_result_url, language, user_id, reserved_seconds')
     .eq('id', id)
     .single()
 
@@ -83,13 +84,6 @@ export async function GET(
           console.error('adjustCredits failed:', err)
         )
 
-        // Delete the source file — no longer needed after transcription
-        if (data.file_url) {
-          admin.storage.from('audio-files').remove([data.file_url]).catch((err) =>
-            console.error('Storage cleanup failed:', err)
-          )
-        }
-
         return NextResponse.json({
           id: data.id,
           file_name: data.file_name,
@@ -106,13 +100,6 @@ export async function GET(
         if (reserved > 0) {
           await refundCredits(subject, reserved).catch((err) =>
             console.error('refundCredits failed:', err)
-          )
-        }
-
-        // Delete the source file on error too
-        if (data.file_url) {
-          admin.storage.from('audio-files').remove([data.file_url]).catch((err) =>
-            console.error('Storage cleanup failed:', err)
           )
         }
 
