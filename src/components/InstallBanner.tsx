@@ -79,7 +79,7 @@ export default function InstallBanner() {
       <button
         onClick={handleDismiss}
         className="absolute right-3 top-3 text-white/30 transition hover:text-white/70"
-        aria-label="Cerrar"
+        aria-label="Close"
       >
         ✕
       </button>
@@ -93,31 +93,31 @@ export default function InstallBanner() {
             className="h-10 w-10 shrink-0 rounded-xl"
           />
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold text-white">Instala Transcribo</p>
-            <p className="text-xs text-white/45">Accede rápido desde tu pantalla de inicio</p>
+            <p className="text-sm font-semibold text-white">Install Transcribo</p>
+            <p className="text-xs text-white/45">Quick access from your home screen</p>
           </div>
           <button
             onClick={handleInstall}
             className="shrink-0 rounded-lg bg-[#e2ff00] px-3 py-1.5 text-sm font-semibold text-black transition hover:bg-[#d4ee00]"
           >
-            Instalar
+            Install
           </button>
         </div>
       )}
 
       {platform === 'ios' && (
         <div className="pr-4">
-          <p className="text-sm font-semibold text-white">Instala Transcribo</p>
+          <p className="text-sm font-semibold text-white">Install Transcribo</p>
           <p className="mt-1 flex flex-wrap items-center gap-x-1 gap-y-0.5 text-xs text-white/60">
-            Toca
+            Tap
             <span className="inline-flex items-center gap-0.5 rounded bg-white/10 px-1.5 py-0.5 text-white">
               <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M12 2 8 6h3v9h2V6h3L12 2zM5 16v4h14v-4h-2v2H7v-2H5z" />
               </svg>
-              Compartir
+              Share
             </span>
-            luego
-            <span className="font-medium text-white">"Agregar a inicio"</span>
+            then
+            <span className="font-medium text-white">"Add to Home Screen"</span>
           </p>
         </div>
       )}

@@ -192,7 +192,7 @@ export default function UploadZone({ onUploadComplete }: Props) {
                   <span>{formatDuration(durationSecs)}</span>
                 </>
               )}
-              {isDetecting && <span className="animate-pulse">анализ…</span>}
+              {isDetecting && <span className="animate-pulse">detecting…</span>}
             </div>
           </div>
         )}
@@ -223,14 +223,14 @@ export default function UploadZone({ onUploadComplete }: Props) {
       {state === 'insufficient' && (
         <div className="mt-4 rounded-xl border border-yellow-400/20 bg-yellow-400/5 px-4 py-3">
           <p className="text-sm text-yellow-300">
-            Недостаточно кредитов для этого файла
+            Not enough credits for this file
             {durationSecs != null && ` (${formatDuration(durationSecs)})`}.
           </p>
           <a
             href="/billing"
             className="mt-2 inline-block text-sm font-medium text-[#e2ff00] hover:opacity-80 transition"
           >
-            Пополнить баланс →
+            Top up credits →
           </a>
         </div>
       )}

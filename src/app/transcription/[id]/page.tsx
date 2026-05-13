@@ -288,7 +288,7 @@ export default function TranscriptionPage() {
                   : 'text-white/40 hover:text-white/70'
               }`}
             >
-              {tab === 'clean' ? 'Текст' : tab === 'detailed' ? 'С таймкодами' : 'Резюме'}
+              {tab === 'clean' ? 'Text' : tab === 'detailed' ? 'Timestamps' : 'Summary'}
             </button>
           ))}
         </div>

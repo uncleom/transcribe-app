@@ -45,23 +45,23 @@ export default async function HistoryPage() {
           Transcribe
         </Link>
         <div className="flex items-center gap-4">
-          <span className="text-sm text-white/40">История</span>
+          <span className="text-sm text-white/40">History</span>
           <LogoutButton />
         </div>
       </header>
 
       <main className="flex-1 px-4 py-10">
         <div className="mx-auto max-w-2xl">
-          <h1 className="mb-6 text-xl font-semibold text-white">История</h1>
+          <h1 className="mb-6 text-xl font-semibold text-white">History</h1>
 
           {!transcriptions?.length ? (
             <div className="rounded-xl border border-white/8 py-20 text-center">
-              <p className="text-sm text-white/30">Нет транскрипций</p>
+              <p className="text-sm text-white/30">No transcriptions yet</p>
               <Link
                 href="/"
                 className="mt-3 inline-block text-sm text-white/50 underline hover:text-white/80 transition"
               >
-                Загрузить первый файл
+                Upload your first file
               </Link>
             </div>
           ) : (
