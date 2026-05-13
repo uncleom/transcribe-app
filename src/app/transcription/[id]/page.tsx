@@ -152,6 +152,9 @@ export default function TranscriptionPage() {
   const [fetchError, setFetchError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
   const [view, setView] = useState<ViewTab>('clean')
+  const [summaryLang, setSummaryLang] = useState<string | null>(null)
+  const [regeneratedSummary, setRegeneratedSummary] = useState<string | null>(null)
+  const [summaryLoading, setSummaryLoading] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -187,6 +190,25 @@ export default function TranscriptionPage() {
     tick()
     return () => { cancelled = true }
   }, [id])
+
+  async function regenerateSummary(lang: string) {
+    setSummaryLang(lang)
+    setSummaryLoading(true)
+    setRegeneratedSummary(null)
+    try {
+      const res = await fetch(`/api/transcribe/${id}/summary`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ language: lang }),
+      })
+      if (res.ok) {
+        const json = await res.json()
+        setRegeneratedSummary(json.summary)
+      }
+    } finally {
+      setSummaryLoading(false)
+    }
+  }
 
   async function copyAll() {
     if (!data?.result) return
@@ -237,6 +259,14 @@ export default function TranscriptionPage() {
   const { result } = data
   const merged = mergeConsecutive(result.utterances)
   const hasSummary = !!result.summary
+  const displayedSummary = regeneratedSummary ?? result.summary
+
+  const SUMMARY_LANGS = [
+    { code: 'en', label: 'EN' },
+    { code: 'es', label: 'ES' },
+    { code: 'pt', label: 'PT' },
+    { code: 'ru', label: 'RU' },
+  ]
 
   return (
     <main className="flex-1 px-4 py-10">
@@ -344,8 +374,36 @@ export default function TranscriptionPage() {
 
         {/* Summary view */}
         {view === 'summary' && hasSummary && (
-          <div className="rounded-xl border border-white/8 bg-white/[0.03] p-6">
-            {renderMarkdown(result.summary!)}
+          <div>
+            <div className="mb-4 flex items-center gap-3">
+              <span className="text-xs text-white/35">Language:</span>
+              <div className="flex gap-1">
+                {SUMMARY_LANGS.map(({ code, label }) => (
+                  <button
+                    key={code}
+                    onClick={() => regenerateSummary(code)}
+                    disabled={summaryLoading}
+                    className={[
+                      'rounded-md px-2.5 py-1 text-xs font-medium transition',
+                      summaryLang === code
+                        ? 'bg-white/15 text-white'
+                        : 'text-white/40 hover:bg-white/8 hover:text-white/70',
+                      summaryLoading ? 'cursor-not-allowed' : '',
+                    ].join(' ')}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              {summaryLoading && (
+                <div className="h-3 w-3 animate-spin rounded-full border border-white/20 border-t-white/60" />
+              )}
+            </div>
+            <div className="rounded-xl border border-white/8 bg-white/[0.03] p-6">
+              {summaryLoading
+                ? <p className="text-sm text-white/30 animate-pulse">Generating summary…</p>
+                : renderMarkdown(displayedSummary!)}
+            </div>
           </div>
         )}
 
