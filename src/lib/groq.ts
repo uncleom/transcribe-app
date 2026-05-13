@@ -37,24 +37,28 @@ async function chat(messages: GroqMessage[]): Promise<string> {
   return data.choices[0].message.content.trim()
 }
 
+const LANG_NAMES: Record<string, string> = {
+  en: 'English',
+  es: 'Spanish',
+  pt: 'Brazilian Portuguese',
+  ru: 'Russian',
+}
+
 /**
  * Generate a concise summary of a transcript.
  * @param transcript Full transcript text
- * @param language   Language code (e.g. "ru", "en") for response localisation
+ * @param language   Output language code: 'en' | 'es' | 'pt' | 'ru'
  */
 export async function summariseTranscript(
   transcript: string,
   language: string = 'en'
 ): Promise<string> {
-  const langInstruction =
-    language !== 'en'
-      ? `Respond in the same language as the transcript (${language}).`
-      : 'Respond in English.'
+  const langName = LANG_NAMES[language] ?? 'English'
 
   const messages: GroqMessage[] = [
     {
       role: 'system',
-      content: `You are a helpful assistant that summarises transcripts concisely. ${langInstruction} Provide a structured summary with key topics and action items if any.`,
+      content: `You are a helpful assistant that summarises transcripts concisely. Always respond in ${langName}, regardless of the language of the transcript. Provide a structured summary with key topics and action items if any.`,
     },
     {
       role: 'user',
