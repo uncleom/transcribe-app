@@ -212,9 +212,20 @@ export default function TranscriptionPage() {
 
   async function copyAll() {
     if (!data?.result) return
-    const text = data.result.utterances
-      .map((u) => `[Speaker ${u.speaker}] ${u.text}`)
-      .join('\n\n')
+    const r = data.result
+    let text = ''
+    if (view === 'clean') {
+      text = mergeConsecutive(r.utterances)
+        .map((u) => `[Speaker ${u.speaker}] ${u.text}`)
+        .join('\n\n')
+    } else if (view === 'detailed') {
+      text = r.utterances
+        .map((u) => `[Speaker ${u.speaker}] [${formatTime(u.start)}–${formatTime(u.end)}] ${u.text}`)
+        .join('\n\n')
+    } else if (view === 'summary') {
+      text = (regeneratedSummary ?? r.summary) ?? ''
+    }
+    if (!text) return
     await navigator.clipboard.writeText(text)
     setCopied(true)
     setTimeout(() => setCopied(false), 2_000)
