@@ -22,7 +22,7 @@ export default async function HomePage() {
                 href="/history"
                 className="text-sm text-white/50 transition hover:text-white"
               >
-                История
+                History
               </Link>
               <LogoutButton />
             </>
@@ -31,7 +31,7 @@ export default async function HomePage() {
               href="/login"
               className="text-sm text-white/50 transition hover:text-white"
             >
-              Войти
+              Sign in
             </Link>
           )}
         </div>

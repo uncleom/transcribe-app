@@ -12,8 +12,8 @@ interface Package {
 }
 
 const PACKAGES: Package[] = [
-  { id: 'ensayo', name: 'Ensayo', priceUsd: 5, hours: 10 },
-  { id: 'creador', name: 'Creador', priceUsd: 10, hours: 30, popular: true },
+  { id: 'ensayo', name: 'Starter', priceUsd: 5, hours: 10 },
+  { id: 'creador', name: 'Creator', priceUsd: 10, hours: 30, popular: true },
   { id: 'pro', name: 'Pro', priceUsd: 20, hours: 80 },
 ]
 
@@ -59,23 +59,23 @@ export default async function BillingPage() {
           {/* Current balance */}
           <div className="mb-10 rounded-2xl border border-white/[0.08] bg-white/[0.02] p-6">
             <p className="text-xs font-medium uppercase tracking-wider text-white/40">
-              Tu saldo
+              Your balance
             </p>
             <p className="mt-2 text-3xl font-bold text-white">
               {isUnlimited ? '∞' : formatCredits(currentCredits)}
             </p>
             {!isUnlimited && (
               <p className="mt-1 text-sm text-white/45">
-                disponibles para transcribir
+                available for transcription
               </p>
             )}
           </div>
 
           {/* Packages */}
           <div className="mb-4">
-            <h1 className="text-xl font-semibold text-white">Comprar créditos</h1>
+            <h1 className="text-xl font-semibold text-white">Buy credits</h1>
             <p className="mt-1 text-sm text-white/45">
-              Pagás una vez. Los créditos no vencen.
+              Pay once. Credits never expire.
             </p>
           </div>
 
@@ -104,27 +104,27 @@ export default async function BillingPage() {
                   <span className="text-sm text-white/40">USD</span>
                 </div>
                 <p className="mt-1 text-sm text-white/60">
-                  {pkg.hours} horas de transcripción
+                  {pkg.hours} hours of transcription
                 </p>
 
                 <ul className="mt-5 space-y-2 text-sm text-white/60">
                   <li className="flex gap-2">
                     <span className="text-[#e2ff00]">✓</span>
-                    <span>Sin vencimiento</span>
+                    <span>Never expires</span>
                   </li>
                   <li className="flex gap-2">
                     <span className="text-[#e2ff00]">✓</span>
-                    <span>Separación de voces</span>
+                    <span>Speaker diarization</span>
                   </li>
                   <li className="flex gap-2">
                     <span className="text-[#e2ff00]">✓</span>
-                    <span>Resumen automático</span>
+                    <span>AI summary</span>
                   </li>
                 </ul>
 
                 <button
                   disabled
-                  title="Próximamente — integración con MercadoPago en camino"
+                  title="Coming soon"
                   className={[
                     'mt-6 w-full rounded-xl py-3 text-sm font-semibold transition',
                     'cursor-not-allowed opacity-50',
@@ -133,11 +133,11 @@ export default async function BillingPage() {
                       : 'border border-white/15 text-white/70',
                   ].join(' ')}
                 >
-                  Comprar
+                  Buy
                 </button>
 
                 <p className="mt-2 text-center text-[11px] text-white/30">
-                  Próximamente
+                  Coming soon
                 </p>
               </div>
             ))}
@@ -146,10 +146,10 @@ export default async function BillingPage() {
           {/* Payment methods preview */}
           <div className="mt-10 rounded-xl border border-white/[0.06] bg-white/[0.01] p-5">
             <p className="text-xs font-medium uppercase tracking-wider text-white/40">
-              Métodos de pago
+              Payment methods
             </p>
             <p className="mt-2 text-sm text-white/60">
-              MercadoPago (tarjeta, Rapipago, Pago Fácil, dinero en cuenta) · próximamente Pix y OXXO
+              Payment integration coming soon
             </p>
           </div>
         </div>

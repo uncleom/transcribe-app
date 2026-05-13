@@ -18,7 +18,7 @@ export default function LoginPage() {
       <div className="w-full max-w-sm space-y-8">
         <div className="text-center">
           <h1 className="text-2xl font-semibold text-white">Transcribe</h1>
-          <p className="mt-2 text-sm text-white/40">Войдите, чтобы просматривать историю</p>
+          <p className="mt-2 text-sm text-white/40">Sign in to view your transcription history</p>
         </div>
 
         <button
@@ -26,7 +26,7 @@ export default function LoginPage() {
           className="flex w-full items-center justify-center gap-3 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-medium text-white transition hover:bg-white/[0.08] hover:border-white/20 active:scale-[0.98]"
         >
           <GoogleIcon />
-          Войти через Google
+          Continue with Google
         </button>
       </div>
     </main>

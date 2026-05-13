@@ -18,7 +18,7 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   title: 'Transcribo',
-  description: 'Transcripción multilingüe de audio y video con identificación de hablantes',
+  description: 'Multilingual audio and video transcription with speaker diarization and AI summaries',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
@@ -35,7 +35,7 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html
-      lang="es"
+      lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-[#0a0a0a] text-white">
