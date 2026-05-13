@@ -56,6 +56,8 @@ Supabase
   └── anonymous_usage   IP-based usage tracking with RLS
 ```
 
+The UI is in English. The architecture is ready for localization (es-AR and pt-BR were the original target markets) — adding `next-intl` would be a straightforward next step.
+
 **Key design decisions:**
 
 - Files go directly from the browser to Gladia — Supabase Storage is not used as a relay, reducing latency and egress costs. Storage bucket is private; signed URLs are generated per-request.
