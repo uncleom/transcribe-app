@@ -34,7 +34,7 @@
 
 - [ ] **A8** Удалить `@anthropic-ai/sdk` из deps — AUDIT A8.
 - [ ] **A15** Заменить `next-pwa` v5.6 на `@ducanh2912/next-pwa` — next-pwa несовместим с Next.js 16 нативно, сейчас работает через `--webpack` флаг в build script. Миграция уберёт костыль.
-- [ ] **A9** Переписать `README.md` под продукт — AUDIT A9.
+- [x] **A9** Переписать `README.md` под продукт — закрыто 2026-05-12 (стек, архитектура, скриншот, design decisions).
 - [ ] **A7** Использовать `NEXT_PUBLIC_APP_URL` в Google OAuth redirects или удалить — AUDIT A7.
 - [ ] **P1-obs** Мониторинг Gladia usage + alerting при скачке расходов (Posthog / плейсхолдер) — SPECIFICATION §5.
 - [ ] **P2-pt** Pix-интеграция через EBANX/dLocal для Brazil — MARKET_RESEARCH §2.4.

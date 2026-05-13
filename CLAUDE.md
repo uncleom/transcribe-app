@@ -105,10 +105,17 @@ anonymous_usage:  ip (PK), used_seconds, updated_at
 - ✅ Кредитная система (anon + auth) с atomic RPC
 - ✅ `/history`, `/transcription/[id]`
 - ✅ Миграции применены
-- ✅ `/billing` страница-заглушка (визуал, без реального checkout)
+- ✅ `/billing` страница — баланс + «Coming soon» (карточки пакетов убраны)
 - ✅ Security-хардёнинг: владелец-check на `/api/transcribe/[id]`, санитизация filename, private storage bucket (public=false, public read policy удалена), RLS на `anonymous_usage`, `adjustCredits`/`refundCredits` awaited
 - ✅ `.env.example` создан
 - ✅ PWA: manifest.json, иконки, service worker, InstallBanner (Android + iOS) — A6
+- ✅ README переписан под портфолио: стек, архитектура, design decisions, скриншот — A9
+- ✅ Интерфейс полностью на английском (был микс ru/es/en)
+- ✅ Переключатель языка резюме EN/ES/PT/RU (on-demand через Groq, в БД не кэшируется)
+- ✅ Copy all копирует содержимое текущей вкладки (Text/Timestamps/Summary)
+- ✅ Кредитный бейдж в шапке главной: ∞ / Xm Xs left / жёлтый при < 60 сек
+- ✅ Аноним видит «3 min free · Sign in for 20 min» под зоной загрузки
+- ✅ is_unlimited = true для minkin.oleg@gmail.com (Supabase)
 
 ### Pending (см. `.business/BACKLOG.md`)
 - 🔨 P1: реальный MercadoPago checkout + webhook (M1)
