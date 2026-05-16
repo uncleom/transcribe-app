@@ -5,6 +5,8 @@ import type {
   TranscriptionUtterance,
 } from '@/types'
 
+export type { GladiaPollingResult }
+
 const BASE_URL = 'https://api.gladia.io/v2'
 const POLL_INTERVAL_MS = 5_000
 const MAX_POLL_ATTEMPTS = 60

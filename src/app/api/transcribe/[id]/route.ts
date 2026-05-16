@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient, createServerClient } from '@/lib/supabase/server'
-import { checkTranscriptionStatus, normaliseResult } from '@/lib/gladia'
-import { summariseTranscript } from '@/lib/groq'
+import { checkTranscriptionStatus } from '@/lib/gladia'
+import { finaliseGladiaResult } from '@/lib/transcription'
 import { adjustCredits, refundCredits, getClientIp, type CreditSubject } from '@/lib/credits'
 
 
@@ -59,13 +59,7 @@ export async function GET(
       const gladiaStatus = await checkTranscriptionStatus(data.gladia_result_url)
 
       if (gladiaStatus.status === 'done') {
-        const result = normaliseResult(gladiaStatus)
-
-        try {
-          result.summary = await summariseTranscript(result.full_transcript, result.language)
-        } catch (err) {
-          console.error('Summary generation failed:', err)
-        }
+        const result = await finaliseGladiaResult(gladiaStatus)
 
         await admin
           .from('transcriptions')

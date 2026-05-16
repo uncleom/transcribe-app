@@ -3,19 +3,13 @@
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import type { TranscriptionResult } from '@/types'
+import { mergeUtterances } from '@/lib/transcription'
 
 interface TranscriptionData {
   id: string
   file_name: string
   status: 'pending' | 'processing' | 'done' | 'error'
   result: TranscriptionResult | null
-}
-
-interface MergedUtterance {
-  speaker: number
-  text: string
-  start: number
-  end: number
 }
 
 const SPEAKER_COLORS = [
@@ -33,18 +27,6 @@ function formatTime(secs: number): string {
   return `${m}:${s.toString().padStart(2, '0')}`
 }
 
-function mergeConsecutive(utterances: TranscriptionResult['utterances']): MergedUtterance[] {
-  return utterances.reduce<MergedUtterance[]>((acc, u) => {
-    const last = acc[acc.length - 1]
-    if (last && last.speaker === u.speaker) {
-      last.text += ' ' + u.text
-      last.end = u.end
-    } else {
-      acc.push({ speaker: u.speaker, text: u.text, start: u.start, end: u.end })
-    }
-    return acc
-  }, [])
-}
 
 // Renders the subset of Markdown that Groq typically produces
 function renderMarkdown(text: string) {
@@ -215,7 +197,7 @@ export default function TranscriptionPage() {
     const r = data.result
     let text = ''
     if (view === 'clean') {
-      text = mergeConsecutive(r.utterances)
+      text = mergeUtterances(r.utterances)
         .map((u) => `[Speaker ${u.speaker}] ${u.text}`)
         .join('\n\n')
     } else if (view === 'detailed') {
@@ -268,7 +250,7 @@ export default function TranscriptionPage() {
   }
 
   const { result } = data
-  const merged = mergeConsecutive(result.utterances)
+  const merged = mergeUtterances(result.utterances)
   const hasSummary = !!result.summary
   const displayedSummary = regeneratedSummary ?? result.summary
 
