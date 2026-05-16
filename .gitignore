@@ -49,3 +49,7 @@ next-env.d.ts
 # private business/brand docs
 .business/
 .brand/
+thoughts/
+
+# claude instructions (personal)
+CLAUDE.md
