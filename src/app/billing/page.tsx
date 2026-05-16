@@ -88,7 +88,10 @@ export default async function BillingPage() {
                   Forward voice messages or audio — get transcripts in Telegram
                 </p>
               </div>
-              <span className="text-xl">✈️</span>
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="flex-shrink-0">
+                <circle cx="12" cy="12" r="12" fill="#2AABEE"/>
+                <path d="M17.6 7.2L15.5 17.6c-.2.7-.6.9-1.2.6l-3.3-2.4-1.6 1.5c-.2.2-.3.3-.7.3l.2-3.3 6.1-5.5c.3-.2-.1-.4-.4-.1L7 13.5l-3.2-1c-.7-.2-.7-.7.2-1l13-5c.5-.2 1 .1.8.7z" fill="white"/>
+              </svg>
             </div>
             <div className="mt-4">
               <TelegramLinkButton

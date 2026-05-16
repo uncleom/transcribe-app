@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { createServerClient } from '@/lib/supabase/server'
+import { createServerClient, createAdminClient } from '@/lib/supabase/server'
 import HomeContent from '@/components/HomeContent'
 import LogoutButton from '@/components/LogoutButton'
 import InstallBanner from '@/components/InstallBanner'
@@ -23,9 +23,10 @@ export default async function HomePage() {
   let isUnlimited = false
   let hasTelegram = false
   if (user) {
+    const admin = createAdminClient()
     const [{ data: profile }, { data: tg }] = await Promise.all([
       supabase.from('profiles').select('credits_seconds, is_unlimited').eq('id', user.id).single(),
-      supabase.from('telegram_accounts').select('telegram_id').eq('supabase_user_id', user.id).maybeSingle(),
+      admin.from('telegram_accounts').select('telegram_id').eq('supabase_user_id', user.id).maybeSingle(),
     ])
     creditsSeconds = profile?.credits_seconds ?? 0
     isUnlimited = profile?.is_unlimited ?? false
