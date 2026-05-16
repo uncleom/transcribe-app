@@ -77,6 +77,25 @@ export default async function HomePage() {
               {' '} for 20 minutes free
             </p>
           )}
+
+          {/* Telegram promo */}
+          <div className="mt-8 rounded-xl border border-white/[0.07] bg-white/[0.02] px-4 py-4">
+            <div className="flex items-center gap-3">
+              <span className="text-xl">✈️</span>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-white/70">Also on Telegram</p>
+                <p className="text-xs text-white/35">
+                  Forward voice messages or audio — get transcript in the chat
+                </p>
+              </div>
+              <Link
+                href="/connect-telegram"
+                className="flex-shrink-0 rounded-lg border border-white/10 px-3 py-1.5 text-xs text-white/50 transition hover:border-white/25 hover:text-white/80"
+              >
+                {user ? 'Connect' : 'Learn more'}
+              </Link>
+            </div>
+          </div>
         </div>
       </main>
 

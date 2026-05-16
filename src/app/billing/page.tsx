@@ -1,7 +1,8 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { createServerClient } from '@/lib/supabase/server'
+import { createServerClient, createAdminClient } from '@/lib/supabase/server'
 import LogoutButton from '@/components/LogoutButton'
+import TelegramLinkButton from '@/components/TelegramLinkButton'
 
 function formatCredits(secs: number): string {
   if (secs <= 0) return '0 min'
@@ -27,6 +28,14 @@ export default async function BillingPage() {
 
   const currentCredits = profile?.credits_seconds ?? 0
   const isUnlimited = profile?.is_unlimited ?? false
+
+  const admin = createAdminClient()
+  const { data: telegramAccount } = await admin
+    .from('telegram_accounts')
+    .select('telegram_username')
+    .eq('supabase_user_id', user.id)
+    .single()
+  const isTelegramLinked = !!telegramAccount
 
   return (
     <>
@@ -60,7 +69,7 @@ export default async function BillingPage() {
           </div>
 
           {/* Coming soon */}
-          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-8 text-center">
+          <div className="mb-6 rounded-2xl border border-white/[0.08] bg-white/[0.02] p-8 text-center">
             <p className="text-lg font-semibold text-white">Top up credits</p>
             <p className="mt-2 text-sm text-white/45">
               Pay-as-you-go packages starting at $5 · Credits never expire
@@ -68,6 +77,25 @@ export default async function BillingPage() {
             <p className="mt-6 inline-block rounded-full border border-white/10 px-4 py-1.5 text-xs text-white/35">
               Payment integration coming soon
             </p>
+          </div>
+
+          {/* Telegram */}
+          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-6">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-semibold text-white">Telegram Bot</p>
+                <p className="mt-1 text-xs text-white/40">
+                  Forward voice messages or audio — get transcripts in Telegram
+                </p>
+              </div>
+              <span className="text-xl">✈️</span>
+            </div>
+            <div className="mt-4">
+              <TelegramLinkButton
+                initialLinked={isTelegramLinked}
+                initialUsername={telegramAccount?.telegram_username ?? null}
+              />
+            </div>
           </div>
         </div>
       </main>
