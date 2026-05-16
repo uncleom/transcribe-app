@@ -15,9 +15,9 @@ import {
   type TelegramMessage,
   type TelegramCallbackQuery,
 } from '@/lib/telegram'
-import { transcribeFile } from '@/lib/gladia'
+import { processFile, formatTranscriptText } from '@/lib/transcription'
+import { summariseTranscript, translateTranscript } from '@/lib/groq'
 import type { TranscriptionResult } from '@/types'
-import { summariseTranscript } from '@/lib/groq'
 import { reserveCredits, adjustCredits, refundCredits, CreditsInsufficientError } from '@/lib/credits'
 
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://transcribe.om-dev.uk'
@@ -196,15 +196,14 @@ async function handleFile(
     throw err
   }
 
-  // Transcribe
+  // Transcribe + summarise (shared pipeline from lib/transcription.ts)
   let result
   try {
     const ext = fileRef.file_name?.split('.').pop() ?? 'ogg'
-    const blob = new Blob([fileBuffer])
-    const file = new File([blob], `audio.${ext}`)
-    result = await transcribeFile(file, `audio.${ext}`)
+    const file = new File([fileBuffer], `audio.${ext}`)
+    result = await processFile(file, `audio.${ext}`)
   } catch (err) {
-    console.error('Gladia transcription error:', err)
+    console.error('Transcription error:', err)
     await refundCredits(subject, estimatedSeconds)
     await sendMessage(chatId, 'Transcription failed. Please try again.')
     return
@@ -212,13 +211,6 @@ async function handleFile(
 
   // Adjust credits to actual duration
   await adjustCredits(subject, estimatedSeconds, Math.ceil(result.duration))
-
-  // Generate summary (non-blocking — if it fails, transcription is still saved)
-  try {
-    result.summary = await summariseTranscript(result.full_transcript, result.language ?? 'en')
-  } catch (err) {
-    console.error('Summary generation error:', err)
-  }
 
   // Save to Supabase
   const { data: transcription } = await admin
@@ -235,20 +227,7 @@ async function handleFile(
     .select('id')
     .single()
 
-  // Format transcript: merge consecutive utterances from the same speaker
-  const merged = result.utterances.reduce<Array<{ speaker: number; text: string }>>(
-    (acc, u) => {
-      const last = acc[acc.length - 1]
-      if (last && last.speaker === u.speaker) {
-        last.text += ' ' + u.text
-      } else {
-        acc.push({ speaker: u.speaker, text: u.text })
-      }
-      return acc
-    },
-    []
-  )
-  const transcriptText = merged.map(u => `[Speaker ${u.speaker}] ${u.text}`).join('\n\n')
+  const transcriptText = formatTranscriptText(result.utterances)
 
   // Build inline keyboard
   const targetLang = getTargetLang(langCode)
@@ -310,7 +289,6 @@ async function handleCallback(cbq: TelegramCallbackQuery) {
   if (action === 'trl' && lang) {
     await sendChatAction(chatId, 'typing')
     try {
-      const { translateTranscript } = await import('@/lib/groq')
       const translation = await translateTranscript(result.full_transcript, lang)
       await sendTextOrFile(chatId, translation, `translation_${ts}.txt`)
     } catch {
