@@ -26,7 +26,12 @@ export default async function ConnectTelegramPage() {
       <div className="w-full max-w-md">
         {/* Header */}
         <div className="mb-10 text-center">
-          <div className="mb-4 text-4xl">✈️</div>
+          <div className="mb-4 flex justify-center">
+            <svg width="56" height="56" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="12" cy="12" r="12" fill="#2AABEE"/>
+              <path d="M17.6 7.2L15.5 17.6c-.2.7-.6.9-1.2.6l-3.3-2.4-1.6 1.5c-.2.2-.3.3-.7.3l.2-3.3 6.1-5.5c.3-.2-.1-.4-.4-.1L7 13.5l-3.2-1c-.7-.2-.7-.7.2-1l13-5c.5-.2 1 .1.8.7z" fill="white"/>
+            </svg>
+          </div>
           <h1 className="text-2xl font-bold text-white">Telegram Bot</h1>
           <p className="mt-2 text-sm text-white/45">
             Transcribe audio and voice messages directly in Telegram
