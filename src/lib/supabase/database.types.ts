@@ -90,6 +90,51 @@ export interface Database {
         }
         Relationships: []
       }
+      telegram_accounts: {
+        Row: {
+          telegram_id: number
+          supabase_user_id: string
+          telegram_username: string | null
+          created_at: string
+        }
+        Insert: {
+          telegram_id: number
+          supabase_user_id: string
+          telegram_username?: string | null
+          created_at?: string
+        }
+        Update: {
+          telegram_id?: number
+          supabase_user_id?: string
+          telegram_username?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      telegram_link_tokens: {
+        Row: {
+          token: string
+          supabase_user_id: string
+          expires_at: string
+          used: boolean
+          created_at: string
+        }
+        Insert: {
+          token: string
+          supabase_user_id: string
+          expires_at: string
+          used?: boolean
+          created_at?: string
+        }
+        Update: {
+          token?: string
+          supabase_user_id?: string
+          expires_at?: string
+          used?: boolean
+          created_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: Record<string, never>
     Functions: {
