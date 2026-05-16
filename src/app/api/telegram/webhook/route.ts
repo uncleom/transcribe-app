@@ -213,6 +213,13 @@ async function handleFile(
   // Adjust credits to actual duration
   await adjustCredits(subject, estimatedSeconds, Math.ceil(result.duration))
 
+  // Generate summary (non-blocking — if it fails, transcription is still saved)
+  try {
+    result.summary = await summariseTranscript(result.full_transcript, result.language ?? 'en')
+  } catch (err) {
+    console.error('Summary generation error:', err)
+  }
+
   // Save to Supabase
   const { data: transcription } = await admin
     .from('transcriptions')
@@ -228,9 +235,20 @@ async function handleFile(
     .select('id')
     .single()
 
-  // Format transcript
-  const lines = result.utterances.map(u => `[Speaker ${u.speaker}] ${u.text}`)
-  const transcriptText = lines.join('\n\n')
+  // Format transcript: merge consecutive utterances from the same speaker
+  const merged = result.utterances.reduce<Array<{ speaker: number; text: string }>>(
+    (acc, u) => {
+      const last = acc[acc.length - 1]
+      if (last && last.speaker === u.speaker) {
+        last.text += ' ' + u.text
+      } else {
+        acc.push({ speaker: u.speaker, text: u.text })
+      }
+      return acc
+    },
+    []
+  )
+  const transcriptText = merged.map(u => `[Speaker ${u.speaker}] ${u.text}`).join('\n\n')
 
   // Build inline keyboard
   const targetLang = getTargetLang(langCode)
