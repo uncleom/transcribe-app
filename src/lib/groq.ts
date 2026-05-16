@@ -68,3 +68,28 @@ export async function summariseTranscript(
 
   return chat(messages)
 }
+
+/**
+ * Translate a transcript to the target language.
+ * @param transcript Full transcript text
+ * @param targetLang Target language code: 'en' | 'es' | 'pt' | 'ru'
+ */
+export async function translateTranscript(
+  transcript: string,
+  targetLang: string
+): Promise<string> {
+  const langName = LANG_NAMES[targetLang] ?? 'English'
+
+  const messages: GroqMessage[] = [
+    {
+      role: 'system',
+      content: `You are a professional translator. Translate the following transcript to ${langName}. Preserve the speaker labels (e.g. [Speaker 0]) and paragraph structure. Only output the translated text, nothing else.`,
+    },
+    {
+      role: 'user',
+      content: transcript,
+    },
+  ]
+
+  return chat(messages)
+}
