@@ -53,4 +53,17 @@ thoughts/
 
 # claude instructions (personal)
 CLAUDE.md
+AGENTS.md
 SPECIFICATION.md
+
+# mempalace / internal AI tooling
+mempalace.yaml
+entities.json
+docs/superpowers/
+
+# unused default Next.js assets
+public/file.svg
+public/globe.svg
+public/next.svg
+public/vercel.svg
+public/window.svg
