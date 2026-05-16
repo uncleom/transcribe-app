@@ -349,11 +349,11 @@ async function handleLinkToken(
 
 async function sendWelcome(chatId: number) {
   await sendMessage(chatId,
-    '👋 Welcome to Transcribo!\n\n' +
-    'I can transcribe audio and voice messages with speaker detection.\n\n' +
-    '1. Connect your account: /connect\n' +
-    '2. Send me any audio, voice, or video file\n' +
-    '3. Get the transcript instantly\n\n' +
-    `Or connect from the web: ${SITE_URL}/billing`
+    'Hi! I\'m Transcribo — I turn audio into text.\n\n' +
+    'Forward me any voice message or audio file and I\'ll transcribe it with speaker labels. Works with recordings from WhatsApp, iMessage, Telegram, or any app.\n\n' +
+    'To get started:\n' +
+    `1. Connect your account → ${SITE_URL}/connect-telegram\n` +
+    '2. Send or forward an audio file\n' +
+    '3. Get the transcript in seconds'
   )
 }
