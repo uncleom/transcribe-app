@@ -11,21 +11,21 @@ const BASE_URL = 'https://api.gladia.io/v2'
 const POLL_INTERVAL_MS = 5_000
 const MAX_POLL_ATTEMPTS = 60
 
-function headers() {
+function headers(apiKey: string) {
   return {
-    'x-gladia-key': process.env.GLADIA_API_KEY!,
+    'x-gladia-key': apiKey,
     'Content-Type': 'application/json',
   }
 }
 
 /** Upload a file to Gladia and return its hosted audio_url */
-export async function uploadAudio(file: File | Blob, fileName: string): Promise<string> {
+export async function uploadAudio(file: File | Blob, fileName: string, apiKey: string): Promise<string> {
   const form = new FormData()
   form.append('audio', file, fileName)
 
   const res = await fetch(`${BASE_URL}/upload`, {
     method: 'POST',
-    headers: { 'x-gladia-key': process.env.GLADIA_API_KEY! },
+    headers: { 'x-gladia-key': apiKey },
     body: form,
   })
 
@@ -40,11 +40,12 @@ export async function uploadAudio(file: File | Blob, fileName: string): Promise<
 
 /** Start an async transcription job and return the result_url to poll */
 export async function startTranscription(
-  request: GladiaTranscriptionRequest
+  request: GladiaTranscriptionRequest,
+  apiKey: string
 ): Promise<string> {
   const res = await fetch(`${BASE_URL}/transcription`, {
     method: 'POST',
-    headers: headers(),
+    headers: headers(apiKey),
     body: JSON.stringify(request),
   })
 
@@ -58,8 +59,8 @@ export async function startTranscription(
 }
 
 /** Check status of a transcription job once — no retry loop */
-export async function checkTranscriptionStatus(resultUrl: string): Promise<GladiaPollingResult> {
-  const res = await fetch(resultUrl, { headers: headers() })
+export async function checkTranscriptionStatus(resultUrl: string, apiKey: string): Promise<GladiaPollingResult> {
+  const res = await fetch(resultUrl, { headers: headers(apiKey) })
   if (!res.ok) {
     const text = await res.text()
     throw new Error(`Gladia status check failed (${res.status}): ${text}`)
@@ -68,11 +69,11 @@ export async function checkTranscriptionStatus(resultUrl: string): Promise<Gladi
 }
 
 /** Poll result_url until done or error, then return the raw Gladia result */
-export async function pollTranscription(resultUrl: string): Promise<GladiaPollingResult> {
+export async function pollTranscription(resultUrl: string, apiKey: string): Promise<GladiaPollingResult> {
   for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt++) {
     await sleep(POLL_INTERVAL_MS)
 
-    const res = await fetch(resultUrl, { headers: headers() })
+    const res = await fetch(resultUrl, { headers: headers(apiKey) })
 
     if (!res.ok) {
       const text = await res.text()
@@ -93,17 +94,18 @@ export async function pollTranscription(resultUrl: string): Promise<GladiaPollin
 /** Full pipeline: upload → start → poll → normalise result */
 export async function transcribeFile(
   file: File | Blob,
-  fileName: string
+  fileName: string,
+  apiKey: string
 ): Promise<TranscriptionResult> {
-  const audioUrl = await uploadAudio(file, fileName)
+  const audioUrl = await uploadAudio(file, fileName, apiKey)
 
   const request: GladiaTranscriptionRequest = {
     audio_url: audioUrl,
     diarization: true,
   }
 
-  const resultUrl = await startTranscription(request)
-  const gladiaResult = await pollTranscription(resultUrl)
+  const resultUrl = await startTranscription(request, apiKey)
+  const gladiaResult = await pollTranscription(resultUrl, apiKey)
 
   return normaliseResult(gladiaResult)
 }

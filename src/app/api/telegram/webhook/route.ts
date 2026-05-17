@@ -17,6 +17,7 @@ import {
 } from '@/lib/telegram'
 import { processFile, formatTranscriptText } from '@/lib/transcription'
 import { summariseTranscript, translateTranscript } from '@/lib/groq'
+import { resolveGroqKey } from '@/lib/api-keys'
 import type { TranscriptionResult } from '@/types'
 import { reserveCredits, adjustCredits, refundCredits, CreditsInsufficientError } from '@/lib/credits'
 
@@ -213,7 +214,7 @@ async function handleFile(
   try {
     const ext = fileRef.file_name?.split('.').pop() ?? 'ogg'
     const file = new File([fileBuffer], `audio.${ext}`)
-    result = await processFile(file, `audio.${ext}`)
+    result = await processFile(file, `audio.${ext}`, userId)
   } catch (err) {
     console.error('Transcription error:', err)
     await refundCredits(subject, estimatedSeconds)
@@ -276,7 +277,7 @@ async function handleCallback(cbq: TelegramCallbackQuery) {
   const admin = createAdminClient()
   const { data: transcription } = await admin
     .from('transcriptions')
-    .select('result')
+    .select('result, user_id')
     .eq('id', transcriptionId)
     .single()
 
@@ -286,12 +287,13 @@ async function handleCallback(cbq: TelegramCallbackQuery) {
   }
 
   const result = transcription.result as TranscriptionResult
+  const groqKey = resolveGroqKey(transcription.user_id)
   const ts = fileTimestamp()
 
   if (action === 'sum') {
     await sendChatAction(chatId, 'typing')
     try {
-      const summary = await summariseTranscript(result.full_transcript, result.language ?? 'en')
+      const summary = await summariseTranscript(result.full_transcript, result.language ?? 'en', groqKey)
 
       const userLang = cbq.from.language_code ?? 'en'
       const targetLang = getTargetLang(userLang)
@@ -315,7 +317,7 @@ async function handleCallback(cbq: TelegramCallbackQuery) {
   if (action === 'trs' && lang) {
     await sendChatAction(chatId, 'typing')
     try {
-      const summary = await summariseTranscript(result.full_transcript, lang)
+      const summary = await summariseTranscript(result.full_transcript, lang, groqKey)
       await sendTextOrFile(chatId, stripMarkdown(summary), `summary_${ts}.txt`)
     } catch {
       await sendMessage(chatId, 'Failed to translate summary. Please try again.')
@@ -326,7 +328,7 @@ async function handleCallback(cbq: TelegramCallbackQuery) {
   if (action === 'trl' && lang) {
     await sendChatAction(chatId, 'typing')
     try {
-      const translation = await translateTranscript(result.full_transcript, lang)
+      const translation = await translateTranscript(result.full_transcript, lang, groqKey)
       await sendTextOrFile(chatId, translation, `translation_${ts}.txt`)
     } catch {
       await sendMessage(chatId, 'Failed to translate. Please try again.')

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient, createServerClient } from '@/lib/supabase/server'
 import { checkTranscriptionStatus } from '@/lib/gladia'
 import { finaliseGladiaResult } from '@/lib/transcription'
+import { resolveGladiaKey } from '@/lib/api-keys'
 import { adjustCredits, refundCredits, getClientIp, type CreditSubject } from '@/lib/credits'
 
 
@@ -56,10 +57,10 @@ export async function GET(
   // Still in-flight — ping Gladia once
   if (data.gladia_result_url) {
     try {
-      const gladiaStatus = await checkTranscriptionStatus(data.gladia_result_url)
+      const gladiaStatus = await checkTranscriptionStatus(data.gladia_result_url, resolveGladiaKey(data.user_id))
 
       if (gladiaStatus.status === 'done') {
-        const result = await finaliseGladiaResult(gladiaStatus)
+        const result = await finaliseGladiaResult(gladiaStatus, data.user_id)
 
         await admin
           .from('transcriptions')
