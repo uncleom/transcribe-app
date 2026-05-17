@@ -148,7 +148,7 @@ export default function UploadZone({ onUploadComplete }: Props) {
             ? 'cursor-default border-white/10'
             : 'cursor-pointer focus-visible:ring-2 focus-visible:ring-[#e2ff00]/50',
           isDragging
-            ? 'border-[#e2ff00] bg-[#e2ff00]/5'
+            ? 'border-[#e2ff00] bg-[#e2ff00]/5 shadow-[0_0_40px_rgba(226,255,0,0.08)]'
             : !isUploading && !isDetecting
             ? 'border-white/20 hover:border-white/35 hover:bg-white/[0.02]'
             : 'border-white/10',
