@@ -23,6 +23,18 @@ import { reserveCredits, adjustCredits, refundCredits, CreditsInsufficientError 
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://transcribe.om-dev.uk'
 const MAX_FILE_BYTES = 20 * 1024 * 1024 // 20 MB (Telegram getFile limit)
 
+/** Strip markdown formatting for plain-text Telegram messages */
+function stripMarkdown(text: string): string {
+  return text
+    .replace(/^#{1,6}\s+/gm, '')
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/\*([^*]+)\*/g, '$1')
+    .replace(/__([^_]+)__/g, '$1')
+    .replace(/_([^_]+)_/g, '$1')
+    .replace(/^[-*]\s/gm, '• ')
+    .trim()
+}
+
 // ─── Entry point ─────────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
@@ -221,6 +233,7 @@ async function handleFile(
       file_url: '',
       status: 'done',
       result,
+      language: result.language,
       reserved_seconds: estimatedSeconds,
       duration_seconds: Math.ceil(result.duration),
     })
@@ -279,7 +292,7 @@ async function handleCallback(cbq: TelegramCallbackQuery) {
     await sendChatAction(chatId, 'typing')
     try {
       const summary = await summariseTranscript(result.full_transcript, result.language ?? 'en')
-      await sendTextOrFile(chatId, summary ?? 'No summary available.', `summary_${ts}.txt`)
+      await sendTextOrFile(chatId, stripMarkdown(summary ?? 'No summary available.'), `summary_${ts}.txt`)
     } catch {
       await sendMessage(chatId, 'Failed to generate summary. Please try again.')
     }

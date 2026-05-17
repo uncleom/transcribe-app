@@ -62,10 +62,14 @@ export function mergeUtterances(utterances: TranscriptionUtterance[]): MergedUtt
 
 /**
  * Format a transcript as plain text with speaker labels.
+ * Skips speaker labels when there's only one speaker.
  * Used by the bot and the "Copy all" action on the Text tab.
  */
 export function formatTranscriptText(utterances: TranscriptionUtterance[]): string {
-  return mergeUtterances(utterances)
-    .map(u => `[Speaker ${u.speaker}] ${u.text}`)
+  const merged = mergeUtterances(utterances)
+  const uniqueSpeakers = new Set(merged.map(u => u.speaker)).size
+  const showLabels = uniqueSpeakers > 1
+  return merged
+    .map(u => showLabels ? `[Speaker ${u.speaker}] ${u.text}` : u.text)
     .join('\n\n')
 }
