@@ -44,9 +44,11 @@ const EXT_MIME: Record<string, string> = {
 }
 
 function resolveFileType(file: File): string {
-  if (file.type && file.type !== 'application/octet-stream') return file.type
-  const ext = file.name.split('.').pop()?.toLowerCase() ?? ''
-  return EXT_MIME[ext] ?? file.type
+  const raw = file.type && file.type !== 'application/octet-stream'
+    ? file.type
+    : EXT_MIME[file.name.split('.').pop()?.toLowerCase() ?? ''] ?? file.type
+  // Strip codec params: "audio/webm; codecs=opus" → "audio/webm"
+  return raw.split(';')[0].trim()
 }
 
 function sanitizeFilename(name: string): string {
