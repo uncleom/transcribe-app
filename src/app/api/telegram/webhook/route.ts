@@ -292,9 +292,33 @@ async function handleCallback(cbq: TelegramCallbackQuery) {
     await sendChatAction(chatId, 'typing')
     try {
       const summary = await summariseTranscript(result.full_transcript, result.language ?? 'en')
-      await sendTextOrFile(chatId, stripMarkdown(summary ?? 'No summary available.'), `summary_${ts}.txt`)
+
+      const userLang = cbq.from.language_code ?? 'en'
+      const targetLang = getTargetLang(userLang)
+      const summaryLang = result.language?.split('-')[0]?.toLowerCase() ?? 'unknown'
+      const showTranslate = summaryLang !== targetLang && targetLang in { en: 1, es: 1, pt: 1, ru: 1 }
+
+      const keyboard = showTranslate ? {
+        inline_keyboard: [[
+          { text: getTranslateLabel(userLang), callback_data: `trs:${transcriptionId}:${targetLang}` },
+        ]],
+      } : undefined
+
+      await sendTextOrFile(chatId, stripMarkdown(summary ?? 'No summary available.'), `summary_${ts}.txt`, keyboard)
     } catch {
       await sendMessage(chatId, 'Failed to generate summary. Please try again.')
+    }
+    return
+  }
+
+  // Translate summary — re-generates summary in target language
+  if (action === 'trs' && lang) {
+    await sendChatAction(chatId, 'typing')
+    try {
+      const summary = await summariseTranscript(result.full_transcript, lang)
+      await sendTextOrFile(chatId, stripMarkdown(summary), `summary_${ts}.txt`)
+    } catch {
+      await sendMessage(chatId, 'Failed to translate summary. Please try again.')
     }
     return
   }
