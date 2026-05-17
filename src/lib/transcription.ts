@@ -3,6 +3,7 @@
 
 import { normaliseResult, transcribeFile, type GladiaPollingResult } from '@/lib/gladia'
 import { summariseTranscript } from '@/lib/groq'
+import { resolveGladiaKey, resolveGroqKey } from '@/lib/api-keys'
 import type { TranscriptionResult, TranscriptionUtterance } from '@/types'
 
 export interface MergedUtterance {
@@ -18,24 +19,24 @@ export interface MergedUtterance {
  * Step 1 (website): called after Gladia returns done status.
  * Normalises the raw Gladia result and generates a summary.
  */
-export async function finaliseGladiaResult(raw: GladiaPollingResult): Promise<TranscriptionResult> {
+export async function finaliseGladiaResult(raw: GladiaPollingResult, userId?: string | null): Promise<TranscriptionResult> {
   const result = normaliseResult(raw)
-  await addSummary(result)
+  await addSummary(result, resolveGroqKey(userId))
   return result
 }
 
 /**
  * Step 1 (bot): full pipeline — upload file to Gladia, poll, normalise, summarise.
  */
-export async function processFile(file: File | Blob, fileName: string): Promise<TranscriptionResult> {
-  const result = await transcribeFile(file, fileName)
-  await addSummary(result)
+export async function processFile(file: File | Blob, fileName: string, userId?: string | null): Promise<TranscriptionResult> {
+  const result = await transcribeFile(file, fileName, resolveGladiaKey(userId))
+  await addSummary(result, resolveGroqKey(userId))
   return result
 }
 
-async function addSummary(result: TranscriptionResult): Promise<void> {
+async function addSummary(result: TranscriptionResult, groqKey: string): Promise<void> {
   try {
-    result.summary = await summariseTranscript(result.full_transcript, result.language)
+    result.summary = await summariseTranscript(result.full_transcript, result.language, groqKey)
   } catch (err) {
     console.error('Summary generation failed (non-fatal):', err)
   }

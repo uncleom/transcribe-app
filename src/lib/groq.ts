@@ -13,11 +13,11 @@ interface GroqResponse {
   }>
 }
 
-async function chat(messages: GroqMessage[]): Promise<string> {
+async function chat(messages: GroqMessage[], apiKey: string): Promise<string> {
   const res = await fetch(GROQ_API_URL, {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+      Authorization: `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
@@ -51,7 +51,8 @@ const LANG_NAMES: Record<string, string> = {
  */
 export async function summariseTranscript(
   transcript: string,
-  language: string = 'en'
+  language: string = 'en',
+  apiKey: string = process.env.GROQ_API_KEY!
 ): Promise<string> {
   const langName = LANG_NAMES[language] ?? 'English'
 
@@ -66,7 +67,7 @@ export async function summariseTranscript(
     },
   ]
 
-  return chat(messages)
+  return chat(messages, apiKey)
 }
 
 /**
@@ -76,7 +77,8 @@ export async function summariseTranscript(
  */
 export async function translateTranscript(
   transcript: string,
-  targetLang: string
+  targetLang: string,
+  apiKey: string = process.env.GROQ_API_KEY!
 ): Promise<string> {
   const langName = LANG_NAMES[targetLang] ?? 'English'
 
@@ -91,5 +93,5 @@ export async function translateTranscript(
     },
   ]
 
-  return chat(messages)
+  return chat(messages, apiKey)
 }

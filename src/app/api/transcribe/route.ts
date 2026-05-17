@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient, createServerClient } from '@/lib/supabase/server'
 import { uploadAudio, startTranscription } from '@/lib/gladia'
+import { resolveGladiaKey } from '@/lib/api-keys'
 import {
   reserveCredits,
   refundCredits,
@@ -122,11 +123,12 @@ export async function POST(req: NextRequest) {
   let gladiaAudioUrl: string
   let resultUrl: string
   try {
-    gladiaAudioUrl = await uploadAudio(file, safeName)
+    const gladiaKey = resolveGladiaKey(user?.id)
+    gladiaAudioUrl = await uploadAudio(file, safeName, gladiaKey)
     resultUrl = await startTranscription({
       audio_url: gladiaAudioUrl,
       diarization: true,
-    })
+    }, gladiaKey)
   } catch (err) {
     console.error('Gladia error:', err)
     await refundCredits(subject, durationHint)
