@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useRef, DragEvent, ChangeEvent } from 'react'
+import { useState, useRef, useEffect, DragEvent, ChangeEvent } from 'react'
 
 interface Props {
   onUploadComplete: (id: string) => void
+  initialFile?: File
 }
 
 type State =
@@ -16,13 +17,18 @@ type State =
   | 'uploading'
   | 'error'
 
-export default function UploadZone({ onUploadComplete }: Props) {
+export default function UploadZone({ onUploadComplete, initialFile }: Props) {
   const [state, setState] = useState<State>('idle')
   const [file, setFile] = useState<File | null>(null)
   const [durationSecs, setDurationSecs] = useState<number | null>(null)
   const [progress, setProgress] = useState(0)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (initialFile && state === 'idle') selectFile(initialFile)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialFile])
 
   function handleDragOver(e: DragEvent<HTMLDivElement>) {
     e.preventDefault()
