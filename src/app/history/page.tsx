@@ -76,6 +76,13 @@ export default async function HistoryPage() {
                       href={`/transcription/${t.id}`}
                       className="group -mx-3 flex items-center gap-4 rounded-lg px-3 py-4 transition hover:bg-white/[0.03]"
                     >
+                      <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-white/[0.06] transition group-hover:bg-white/[0.09]">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-white/40">
+                          <path d="M9 18V5l12-2v13" />
+                          <circle cx="6" cy="18" r="3" />
+                          <circle cx="18" cy="16" r="3" />
+                        </svg>
+                      </div>
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-medium text-white/85 transition group-hover:text-white">
                           {t.file_name}

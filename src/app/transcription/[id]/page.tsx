@@ -293,9 +293,13 @@ export default function TranscriptionPage() {
 
           <button
             onClick={copyAll}
-            className="flex-shrink-0 rounded-lg border border-white/15 px-4 py-2 text-sm text-white/60 transition hover:border-white/30 hover:text-white"
+            className={`flex-shrink-0 rounded-lg border px-4 py-2 text-sm transition ${
+              copied
+                ? 'border-[#e2ff00]/30 text-[#e2ff00]'
+                : 'border-white/15 text-white/60 hover:border-white/30 hover:text-white'
+            }`}
           >
-            {copied ? 'Copied!' : 'Copy all'}
+            {copied ? '✓ Copied' : 'Copy all'}
           </button>
         </div>
 
@@ -307,7 +311,7 @@ export default function TranscriptionPage() {
               onClick={() => setView(tab)}
               className={`rounded-md px-4 py-1.5 text-sm transition ${
                 view === tab
-                  ? 'bg-white/12 text-white font-medium'
+                  ? 'bg-[#e2ff00]/10 text-[#e2ff00] font-medium'
                   : 'text-white/40 hover:text-white/70'
               }`}
             >
@@ -318,11 +322,11 @@ export default function TranscriptionPage() {
 
         {/* Clean view */}
         {view === 'clean' && (
-          <div className="flex flex-col gap-5">
+          <div className="flex flex-col gap-2">
             {merged.map((u, i) => {
               const color = SPEAKER_COLORS[u.speaker % SPEAKER_COLORS.length]
               return (
-                <div key={i} className="flex gap-3">
+                <div key={i} className="flex gap-3 rounded-lg px-3 py-2.5 -mx-3 transition hover:bg-white/[0.025]">
                   <div className="flex-shrink-0 pt-0.5">
                     <span
                       className="inline-block rounded-full px-2.5 py-0.5 text-[11px] font-bold text-black"
@@ -340,11 +344,11 @@ export default function TranscriptionPage() {
 
         {/* Detailed view */}
         {view === 'detailed' && (
-          <div className="flex flex-col gap-5">
+          <div className="flex flex-col gap-2">
             {result.utterances.map((u, i) => {
               const color = SPEAKER_COLORS[u.speaker % SPEAKER_COLORS.length]
               return (
-                <div key={i} className="flex gap-3">
+                <div key={i} className="flex gap-3 rounded-lg px-3 py-2.5 -mx-3 transition hover:bg-white/[0.025]">
                   <div className="flex-shrink-0 pt-0.5">
                     <span
                       className="inline-block rounded-full px-2.5 py-0.5 text-[11px] font-bold text-black"
@@ -379,7 +383,7 @@ export default function TranscriptionPage() {
                     className={[
                       'rounded-md px-2.5 py-1 text-xs font-medium transition',
                       summaryLang === code
-                        ? 'bg-white/15 text-white'
+                        ? 'bg-[#e2ff00]/15 text-[#e2ff00]'
                         : 'text-white/40 hover:bg-white/8 hover:text-white/70',
                       summaryLoading ? 'cursor-not-allowed' : '',
                     ].join(' ')}
