@@ -1,0 +1,147 @@
+{
+  "project": "transcribe-app",
+  "version": "1.0",
+  "description": "Multilingual audio/video transcription PWA with Telegram bot",
+  "repo": "https://github.com/uncleom/transcribe-app",
+  "layers": [
+    { "id": "frontend", "label": "Frontend", "color": "#3b82f6", "description": "Next.js pages and React components" },
+    { "id": "backend",  "label": "Backend / API", "color": "#22c55e", "description": "Next.js API routes" },
+    { "id": "lib",      "label": "Shared Library", "color": "#06b6d4", "description": "Business logic shared between web and bot" },
+    { "id": "database", "label": "Database", "color": "#f97316", "description": "Supabase Postgres tables" },
+    { "id": "external", "label": "External Services", "color": "#a855f7", "description": "Third-party APIs" }
+  ],
+  "modules": [
+    { "id": "HomePage",           "label": "Home Page",          "layer": "frontend", "file": "src/app/page.tsx",                       "description": "Server Component. Fetches user profile, credits, and telegram_accounts (via adminClient). Renders HomeContent + Telegram promo card (hidden if already connected)." },
+    { "id": "HomeContent",        "label": "HomeContent",        "layer": "frontend", "file": "src/components/HomeContent.tsx",          "description": "Client Component. Toggle between Upload and Record modes. Passes recorded File as initialFile to UploadZone." },
+    { "id": "UploadZone",         "label": "UploadZone",         "layer": "frontend", "file": "src/components/UploadZone.tsx",           "description": "Client Component. Drag-drop or file picker. Detects duration via HTMLVideoElement, calls /api/credits check, uploads via XHR with progress, receives {id}. Accepts initialFile prop from RecordZone." },
+    { "id": "RecordZone",         "label": "RecordZone",         "layer": "frontend", "file": "src/components/RecordZone.tsx",           "description": "Client Component. Cross-browser audio recording via MediaRecorder API. Codec priority: webm+opus → webm → mp4 → ogg. On stop emits File to HomeContent." },
+    { "id": "TranscriptionPage",  "label": "Transcription Page", "layer": "frontend", "file": "src/app/transcription/[id]/page.tsx",     "description": "Client Component. Polls GET /api/transcribe/[id] every 5s until done/error. Shows Text / Timestamps / Summary tabs. On-demand summary translation via POST /api/transcribe/[id]/summary." },
+    { "id": "HistoryPage",        "label": "History Page",       "layer": "frontend", "file": "src/app/history/page.tsx",                "description": "Server Component. Protected — redirects to /login if no session. Lists transcriptions ordered by created_at desc." },
+    { "id": "BillingPage",        "label": "Billing Page",       "layer": "frontend", "file": "src/app/billing/page.tsx",                "description": "Server Component. Shows credit balance and Telegram link status via TelegramLinkButton." },
+    { "id": "ConnectTelegramPage","label": "Connect Telegram",   "layer": "frontend", "file": "src/app/connect-telegram/page.tsx",       "description": "Server Component. Feature highlights + TelegramLinkButton. Checks if already linked via adminClient." },
+    { "id": "LoginPage",          "label": "Login Page",         "layer": "frontend", "file": "src/app/login/page.tsx",                  "description": "Client Component. Calls Supabase signInWithOAuth (Google) with prompt=select_account to prevent auto-login in PWA." },
+
+    { "id": "ApiTranscribePost",  "label": "POST /api/transcribe",          "layer": "backend", "file": "src/app/api/transcribe/route.ts",          "description": "Validates MIME type (strips codec params), checks file size (500MB), resolves Gladia key via api-keys.ts, reserves credits, uploads to Gladia, starts transcription job, saves DB record with status=processing." },
+    { "id": "ApiTranscribeGet",   "label": "GET /api/transcribe/[id]",      "layer": "backend", "file": "src/app/api/transcribe/[id]/route.ts",      "description": "Owner-check (returns 404 not 403 if wrong user). Polls Gladia once. On done: finaliseGladiaResult → update DB → adjustCredits. Returns stored result if already done." },
+    { "id": "ApiSummary",         "label": "POST /api/transcribe/[id]/summary","layer": "backend","file": "src/app/api/transcribe/[id]/summary/route.ts","description": "Regenerates summary via Groq in requested language. Not cached to DB — on-demand only." },
+    { "id": "ApiCredits",         "label": "GET /api/credits",              "layer": "backend", "file": "src/app/api/credits/route.ts",              "description": "Returns {sufficient, remaining} for current user (cookie session) or anonymous IP. Used by UploadZone before upload." },
+    { "id": "ApiWebhook",         "label": "POST /api/telegram/webhook",    "layer": "backend", "file": "src/app/api/telegram/webhook/route.ts",     "description": "Responds 200 immediately, runs processUpdate async (Telegram requires <5s). Handles messages (audio/voice/video) and callback_query (sum/trs/trl actions). stripMarkdown() before sending summary." },
+    { "id": "ApiTelegramConnect", "label": "/api/telegram/connect",         "layer": "backend", "file": "src/app/api/telegram/connect/route.ts",     "description": "POST: generates one-time deep link token (15min TTL) stored in telegram_link_tokens. DELETE: unlinks account." },
+    { "id": "ApiAuthCallback",    "label": "GET /auth/callback",            "layer": "backend", "file": "src/app/auth/callback/route.ts",            "description": "OAuth callback handler. Exchanges code for session via Supabase, redirects to home." },
+
+    { "id": "LibTranscription",   "label": "transcription.ts",  "layer": "lib", "file": "src/lib/transcription.ts",  "description": "Single pipeline for both web and bot. processFile() (bot: full sync) and finaliseGladiaResult() (web: after Gladia done). Both call addSummary→summariseTranscript. formatTranscriptText() skips speaker labels if only one speaker." },
+    { "id": "LibGladia",          "label": "gladia.ts",          "layer": "lib", "file": "src/lib/gladia.ts",          "description": "Gladia API v2 client. uploadAudio, startTranscription, checkTranscriptionStatus (one call), pollTranscription (loop, 5s interval, max 60 attempts). All functions accept apiKey param — no direct env reads." },
+    { "id": "LibGroq",            "label": "groq.ts",            "layer": "lib", "file": "src/lib/groq.ts",            "description": "Groq API client. summariseTranscript(text, language, apiKey) and translateTranscript(text, targetLang, apiKey). Model: llama-3.3-70b-versatile." },
+    { "id": "LibCredits",         "label": "credits.ts",         "layer": "lib", "file": "src/lib/credits.ts",         "description": "CreditSubject = user|anon. Atomic Postgres RPCs: reserveCredits, adjustCredits (post-Gladia correction), refundCredits (on error). Anonymous limit: 180s by IP." },
+    { "id": "LibApiKeys",         "label": "api-keys.ts",        "layer": "lib", "file": "src/lib/api-keys.ts",        "description": "resolveGladiaKey(userId) and resolveGroqKey(userId). OWNER_USER_ID env → personal keys. Others → *_PUBLIC keys (fallback to owner keys if not set)." },
+    { "id": "LibTelegram",        "label": "telegram.ts",        "layer": "lib", "file": "src/lib/telegram.ts",        "description": "Telegram Bot API helpers. sendMessage, sendTextOrFile (splits to file if >4096 chars), answerCallbackQuery, getFileInfo, downloadFile. getTranslateLabel / getTargetLang for i18n buttons." },
+
+    { "id": "DbProfiles",         "label": "profiles",           "layer": "database", "description": "id, email, display_name, credits_seconds (default 1200), is_unlimited (default false), created_at." },
+    { "id": "DbTranscriptions",   "label": "transcriptions",     "layer": "database", "description": "id, user_id (nullable), file_name, file_url, duration_seconds, language, status, result (jsonb), gladia_result_url, reserved_seconds, created_at." },
+    { "id": "DbAnonUsage",        "label": "anonymous_usage",    "layer": "database", "description": "ip (PK), used_seconds, updated_at. RLS: IP can only read/write own row." },
+    { "id": "DbTgAccounts",       "label": "telegram_accounts",  "layer": "database", "description": "telegram_id (PK), supabase_user_id, telegram_username, created_at. Requires adminClient — RLS blocks user client." },
+    { "id": "DbTgTokens",         "label": "telegram_link_tokens","layer": "database", "description": "token (PK), supabase_user_id, expires_at (15min), used bool, created_at." }
+  ],
+  "external_services": [
+    { "id": "GladiaAPI",   "label": "Gladia API v2",    "layer": "external", "url": "https://api.gladia.io/v2",         "description": "Async transcription with speaker diarization. 100+ languages. Upload → start job → poll result_url." },
+    { "id": "GroqAPI",     "label": "Groq API",         "layer": "external", "url": "https://api.groq.com",             "description": "LLM inference. Model: llama-3.3-70b-versatile. Used for summary generation and translation." },
+    { "id": "TelegramAPI", "label": "Telegram Bot API", "layer": "external", "url": "https://api.telegram.org",         "description": "Webhook-based bot. Sends messages, inline keyboards, documents. Bot: @TranscriboAppBot." },
+    { "id": "GoogleOAuth", "label": "Google OAuth",     "layer": "external", "url": "https://accounts.google.com",      "description": "OAuth 2.0 provider via Supabase Auth. prompt=select_account prevents auto-login in PWA." },
+    { "id": "Supabase",    "label": "Supabase",         "layer": "external", "url": "https://supabase.com",             "description": "Postgres + Auth + RLS. Two clients: user (RLS-scoped) and admin (service_role, bypasses RLS)." }
+  ],
+  "dependencies": [
+    { "from": "HomeContent",        "to": "UploadZone",         "label": "" },
+    { "from": "HomeContent",        "to": "RecordZone",         "label": "" },
+    { "from": "RecordZone",         "to": "UploadZone",         "label": "initialFile" },
+    { "from": "UploadZone",         "to": "ApiTranscribePost",  "label": "POST file" },
+    { "from": "UploadZone",         "to": "ApiCredits",         "label": "pre-check" },
+    { "from": "TranscriptionPage",  "to": "ApiTranscribeGet",   "label": "poll 5s" },
+    { "from": "TranscriptionPage",  "to": "ApiSummary",         "label": "on-demand" },
+    { "from": "ApiTranscribePost",  "to": "LibGladia",          "label": "upload+start" },
+    { "from": "ApiTranscribePost",  "to": "LibCredits",         "label": "reserve" },
+    { "from": "ApiTranscribePost",  "to": "LibApiKeys",         "label": "resolve key" },
+    { "from": "ApiTranscribePost",  "to": "DbTranscriptions",   "label": "insert" },
+    { "from": "ApiTranscribeGet",   "to": "LibGladia",          "label": "check status" },
+    { "from": "ApiTranscribeGet",   "to": "LibTranscription",   "label": "finalise" },
+    { "from": "ApiTranscribeGet",   "to": "LibCredits",         "label": "adjust" },
+    { "from": "ApiTranscribeGet",   "to": "LibApiKeys",         "label": "resolve key" },
+    { "from": "ApiTranscribeGet",   "to": "DbTranscriptions",   "label": "update" },
+    { "from": "ApiSummary",         "to": "LibGroq",            "label": "regenerate" },
+    { "from": "ApiSummary",         "to": "LibApiKeys",         "label": "resolve key" },
+    { "from": "ApiCredits",         "to": "LibCredits",         "label": "" },
+    { "from": "ApiWebhook",         "to": "LibTranscription",   "label": "processFile" },
+    { "from": "ApiWebhook",         "to": "LibTelegram",        "label": "" },
+    { "from": "ApiWebhook",         "to": "LibGroq",            "label": "sum/trl" },
+    { "from": "ApiWebhook",         "to": "LibApiKeys",         "label": "resolve key" },
+    { "from": "ApiWebhook",         "to": "DbTranscriptions",   "label": "insert" },
+    { "from": "ApiWebhook",         "to": "DbTgAccounts",       "label": "lookup/upsert" },
+    { "from": "ApiTelegramConnect", "to": "DbTgTokens",         "label": "create token" },
+    { "from": "ApiTelegramConnect", "to": "DbTgAccounts",       "label": "unlink" },
+    { "from": "ApiAuthCallback",    "to": "DbProfiles",         "label": "upsert" },
+    { "from": "LibTranscription",   "to": "LibGladia",          "label": "" },
+    { "from": "LibTranscription",   "to": "LibGroq",            "label": "" },
+    { "from": "LibGladia",          "to": "LibApiKeys",         "label": "" },
+    { "from": "LibGroq",            "to": "LibApiKeys",         "label": "" },
+    { "from": "LibGladia",          "to": "GladiaAPI",          "label": "" },
+    { "from": "LibGroq",            "to": "GroqAPI",            "label": "" },
+    { "from": "LibTelegram",        "to": "TelegramAPI",        "label": "" },
+    { "from": "LibCredits",         "to": "DbProfiles",         "label": "RPC" },
+    { "from": "LibCredits",         "to": "DbAnonUsage",        "label": "RPC" },
+    { "from": "TelegramAPI",        "to": "ApiWebhook",         "label": "webhook POST" },
+    { "from": "GoogleOAuth",        "to": "ApiAuthCallback",    "label": "code" },
+    { "from": "Supabase",           "to": "DbProfiles",         "label": "" },
+    { "from": "Supabase",           "to": "DbTranscriptions",   "label": "" },
+    { "from": "Supabase",           "to": "DbAnonUsage",        "label": "" },
+    { "from": "Supabase",           "to": "DbTgAccounts",       "label": "" },
+    { "from": "Supabase",           "to": "DbTgTokens",         "label": "" }
+  ],
+  "flows": [
+    {
+      "id": "web_upload",
+      "label": "Web: File Upload",
+      "color": "#3b82f6",
+      "description": "User uploads audio/video via browser. Credit check → Gladia async job → 5s polling → summary.",
+      "steps": ["HomePage","HomeContent","UploadZone","ApiCredits","LibCredits","DbProfiles","ApiTranscribePost","LibApiKeys","LibGladia","GladiaAPI","DbTranscriptions","ApiTranscribeGet","LibTranscription","LibGroq","GroqAPI","TranscriptionPage"]
+    },
+    {
+      "id": "web_record",
+      "label": "Web: Browser Recording",
+      "color": "#06b6d4",
+      "description": "User records audio in browser via MediaRecorder API. Codec auto-detected. Recorded file flows into upload pipeline.",
+      "steps": ["HomePage","HomeContent","RecordZone","UploadZone","ApiTranscribePost","LibGladia","GladiaAPI","TranscriptionPage"]
+    },
+    {
+      "id": "bot_transcription",
+      "label": "Telegram: Bot Transcription",
+      "color": "#a855f7",
+      "description": "User sends audio to @TranscriboAppBot. Webhook responds immediately, processes async. Full sync pipeline in processFile().",
+      "steps": ["TelegramAPI","ApiWebhook","DbTgAccounts","LibTranscription","LibApiKeys","LibGladia","GladiaAPI","LibGroq","GroqAPI","DbTranscriptions","LibTelegram","TelegramAPI"]
+    },
+    {
+      "id": "auth",
+      "label": "Auth: Google Sign-In",
+      "color": "#f97316",
+      "description": "Google OAuth via Supabase. prompt=select_account prevents PWA auto-login with previous account.",
+      "steps": ["LoginPage","GoogleOAuth","ApiAuthCallback","Supabase","DbProfiles","HomePage"]
+    },
+    {
+      "id": "telegram_link",
+      "label": "Telegram: Account Linking",
+      "color": "#22c55e",
+      "description": "One-time deep link generated on website, opened in Telegram. Bot handles /start link_TOKEN and upserts telegram_accounts.",
+      "steps": ["ConnectTelegramPage","ApiTelegramConnect","DbTgTokens","TelegramAPI","ApiWebhook","DbTgAccounts"]
+    },
+    {
+      "id": "credit_reserve",
+      "label": "Credits: Reserve → Adjust",
+      "color": "#eab308",
+      "description": "Atomic Postgres RPCs. Reserve estimate before upload, adjust to actual Gladia duration after done, refund on error.",
+      "steps": ["UploadZone","ApiTranscribePost","LibCredits","DbProfiles","DbAnonUsage","ApiTranscribeGet","LibCredits"]
+    }
+  ],
+  "focus_maps": {
+    "ui_only": ["HomePage","HomeContent","UploadZone","RecordZone","TranscriptionPage","HistoryPage","BillingPage","ConnectTelegramPage","LoginPage"],
+    "api_only": ["ApiTranscribePost","ApiTranscribeGet","ApiSummary","ApiCredits","ApiWebhook","ApiTelegramConnect","ApiAuthCallback","LibTranscription","LibGladia","LibGroq","LibCredits","LibApiKeys","LibTelegram"],
+    "db_only":  ["LibCredits","ApiTranscribePost","ApiTranscribeGet","ApiWebhook","ApiTelegramConnect","ApiAuthCallback","DbProfiles","DbTranscriptions","DbAnonUsage","DbTgAccounts","DbTgTokens","Supabase"]
+  }
+}

@@ -4,6 +4,8 @@ A full-stack PWA that transcribes audio and video files with automatic speaker d
 
 **Live demo:** https://transcribe.om-dev.uk · **Telegram:** @TranscriboAppBot
 
+[![Architecture Graph](https://img.shields.io/badge/Architecture-Interactive%20Graph-a855f7?style=flat-square&logo=github)](https://uncleom.github.io/transcribe-app/)
+
 ![Transcribo — main screen](docs/assets/screenshot.png)
 
 ---

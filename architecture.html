@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Transcribo — Architecture</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0a0a0a; color: #e5e5e5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; display: flex; height: 100vh; overflow: hidden; }
+  #graph-wrap { flex: 1; position: relative; overflow: hidden; }
+  svg { width: 100%; height: 100%; cursor: grab; }
+  svg:active { cursor: grabbing; }
+  #sidebar { width: 300px; flex-shrink: 0; background: #111; border-left: 1px solid #222; display: flex; flex-direction: column; overflow: hidden; }
+  #sidebar-header { padding: 16px; border-bottom: 1px solid #222; }
+  #sidebar-header h1 { font-size: 14px; font-weight: 600; color: #fff; }
+  #sidebar-header p { font-size: 11px; color: #555; margin-top: 2px; }
+  #legend { padding: 12px 16px; border-bottom: 1px solid #222; display: flex; flex-wrap: wrap; gap: 8px; }
+  .legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: #888; }
+  .legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  #flows-section { padding: 12px 16px 6px; }
+  #flows-section h2 { font-size: 11px; font-weight: 600; color: #666; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px; }
+  #flows-list { overflow-y: auto; }
+  .flow-item { display: flex; align-items: flex-start; gap: 8px; padding: 8px 16px; cursor: pointer; border-left: 2px solid transparent; transition: background 0.15s; }
+  .flow-item:hover { background: #1a1a1a; }
+  .flow-item.active { background: #1a1a1a; }
+  .flow-dot { width: 10px; height: 10px; border-radius: 50%; margin-top: 3px; flex-shrink: 0; }
+  .flow-text { flex: 1; }
+  .flow-label { font-size: 12px; font-weight: 500; color: #ccc; }
+  .flow-desc { font-size: 11px; color: #555; margin-top: 2px; line-height: 1.4; }
+  #clear-btn { display: none; margin: 4px 16px 8px; padding: 4px 10px; background: #1e1e1e; border: 1px solid #333; border-radius: 6px; color: #888; font-size: 11px; cursor: pointer; }
+  #clear-btn:hover { background: #252525; color: #ccc; }
+  #details { padding: 12px 16px; border-top: 1px solid #222; flex-shrink: 0; display: none; }
+  #details h2 { font-size: 11px; font-weight: 600; color: #666; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px; }
+  #details-name { font-size: 13px; font-weight: 600; color: #fff; }
+  #details-layer { display: inline-block; font-size: 10px; padding: 2px 7px; border-radius: 10px; margin: 4px 0 6px; font-weight: 500; }
+  #details-file { font-size: 11px; color: #555; font-family: monospace; margin-bottom: 6px; }
+  #details-desc { font-size: 12px; color: #888; line-height: 1.5; }
+  .node circle { stroke-width: 1.5; cursor: pointer; transition: opacity 0.2s; }
+  .node text { font-size: 10px; fill: #ccc; pointer-events: none; text-anchor: middle; }
+  .link { stroke-opacity: 0.4; transition: stroke-opacity 0.2s, opacity 0.2s; }
+  .link-label { font-size: 9px; fill: #555; pointer-events: none; }
+  .dimmed { opacity: 0.08 !important; }
+  .highlighted { opacity: 1 !important; stroke-opacity: 0.9 !important; }
+  marker path { fill-opacity: 0.5; }
+  marker.highlighted path { fill-opacity: 1; }
+  #hint { position: absolute; bottom: 12px; left: 12px; font-size: 10px; color: #333; }
+</style>
+</head>
+<body>
+
+<div id="graph-wrap">
+  <svg id="graph"></svg>
+  <div id="hint">Scroll to zoom · Drag to pan · Click node for details · Click flow to highlight</div>
+</div>
+
+<div id="sidebar">
+  <div id="sidebar-header">
+    <h1>Transcribo Architecture</h1>
+    <p>transcribe-app · interactive dependency graph</p>
+  </div>
+  <div id="legend"></div>
+  <div id="flows-section">
+    <h2>Flows</h2>
+    <button id="clear-btn" onclick="clearHighlight()">✕ Clear highlight</button>
+    <div id="flows-list"></div>
+  </div>
+  <div id="details">
+    <h2>Node Details</h2>
+    <div id="details-name"></div>
+    <div id="details-layer"></div>
+    <div id="details-file"></div>
+    <div id="details-desc"></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<script>
+const DATA = {"project":"transcribe-app","layers":[{"id":"frontend","label":"Frontend","color":"#3b82f6"},{"id":"backend","label":"Backend / API","color":"#22c55e"},{"id":"lib","label":"Shared Library","color":"#06b6d4"},{"id":"database","label":"Database","color":"#f97316"},{"id":"external","label":"External Services","color":"#a855f7"}],"modules":[{"id":"HomePage","label":"Home Page","layer":"frontend","file":"src/app/page.tsx","description":"Server Component. Fetches user profile, credits, telegram_accounts. Renders HomeContent + Telegram promo card (hidden if already connected)."},{"id":"HomeContent","label":"HomeContent","layer":"frontend","file":"src/components/HomeContent.tsx","description":"Client Component. Toggle between Upload and Record modes. Passes recorded File as initialFile to UploadZone."},{"id":"UploadZone","label":"UploadZone","layer":"frontend","file":"src/components/UploadZone.tsx","description":"Client Component. Drag-drop or file picker. Detects duration via HTMLVideoElement, calls /api/credits, uploads via XHR. Accepts initialFile from RecordZone."},{"id":"RecordZone","label":"RecordZone","layer":"frontend","file":"src/components/RecordZone.tsx","description":"Cross-browser audio recording via MediaRecorder API. Codec priority: webm+opus → webm → mp4 → ogg. On stop emits File to HomeContent."},{"id":"TranscriptionPage","label":"Transcription Page","layer":"frontend","file":"src/app/transcription/[id]/page.tsx","description":"Client Component. Polls GET /api/transcribe/[id] every 5s. Shows Text / Timestamps / Summary tabs. On-demand summary translation via POST summary endpoint."},{"id":"HistoryPage","label":"History Page","layer":"frontend","file":"src/app/history/page.tsx","description":"Server Component. Protected — redirects to /login if no session."},{"id":"BillingPage","label":"Billing Page","layer":"frontend","file":"src/app/billing/page.tsx","description":"Shows credit balance and Telegram link status via TelegramLinkButton."},{"id":"ConnectTelegramPage","label":"Connect Telegram","layer":"frontend","file":"src/app/connect-telegram/page.tsx","description":"Feature highlights + TelegramLinkButton. Checks if already linked via adminClient."},{"id":"LoginPage","label":"Login Page","layer":"frontend","file":"src/app/login/page.tsx","description":"Calls Supabase signInWithOAuth (Google) with prompt=select_account to prevent auto-login in PWA."},{"id":"ApiTranscribePost","label":"POST /api/transcribe","layer":"backend","file":"src/app/api/transcribe/route.ts","description":"Validates MIME type (strips codec params), resolves Gladia key, reserves credits, uploads to Gladia, starts job, saves DB record with status=processing."},{"id":"ApiTranscribeGet","label":"GET /api/transcribe/[id]","layer":"backend","file":"src/app/api/transcribe/[id]/route.ts","description":"Owner-check (404 not 403). Polls Gladia once. On done: finaliseGladiaResult → update DB → adjustCredits."},{"id":"ApiSummary","label":"POST …/summary","layer":"backend","file":"src/app/api/transcribe/[id]/summary/route.ts","description":"Regenerates summary via Groq in requested language. Not cached to DB — on-demand only."},{"id":"ApiCredits","label":"GET /api/credits","layer":"backend","file":"src/app/api/credits/route.ts","description":"Returns {sufficient, remaining} for current user (cookie) or anonymous IP."},{"id":"ApiWebhook","label":"POST /api/telegram/webhook","layer":"backend","file":"src/app/api/telegram/webhook/route.ts","description":"Responds 200 immediately, runs processUpdate async (Telegram requires <5s). Handles audio messages and callback_query (sum/trs/trl)."},{"id":"ApiTelegramConnect","label":"/api/telegram/connect","layer":"backend","file":"src/app/api/telegram/connect/route.ts","description":"POST: generates one-time deep link token (15min TTL). DELETE: unlinks account."},{"id":"ApiAuthCallback","label":"GET /auth/callback","layer":"backend","file":"src/app/auth/callback/route.ts","description":"OAuth callback handler. Exchanges code for session, redirects to home."},{"id":"LibTranscription","label":"transcription.ts","layer":"lib","file":"src/lib/transcription.ts","description":"Single pipeline for web and bot. processFile() (bot: full sync) and finaliseGladiaResult() (web). Both call addSummary. formatTranscriptText() skips speaker labels if only one speaker."},{"id":"LibGladia","label":"gladia.ts","layer":"lib","file":"src/lib/gladia.ts","description":"Gladia API v2 client. uploadAudio, startTranscription, checkTranscriptionStatus, pollTranscription (5s interval, max 60 attempts). All accept apiKey param."},{"id":"LibGroq","label":"groq.ts","layer":"lib","file":"src/lib/groq.ts","description":"Groq API client. summariseTranscript and translateTranscript. Model: llama-3.3-70b-versatile."},{"id":"LibCredits","label":"credits.ts","layer":"lib","file":"src/lib/credits.ts","description":"CreditSubject = user|anon. Atomic Postgres RPCs: reserveCredits, adjustCredits, refundCredits. Anonymous limit: 180s by IP."},{"id":"LibApiKeys","label":"api-keys.ts","layer":"lib","file":"src/lib/api-keys.ts","description":"resolveGladiaKey(userId) and resolveGroqKey(userId). OWNER_USER_ID → personal keys; others → *_PUBLIC keys with fallback."},{"id":"LibTelegram","label":"telegram.ts","layer":"lib","file":"src/lib/telegram.ts","description":"Telegram Bot API helpers. sendMessage, sendTextOrFile (file if >4096 chars), getFileInfo, downloadFile, inline keyboard builders."},{"id":"DbProfiles","label":"profiles","layer":"database","description":"id, email, credits_seconds (default 1200), is_unlimited (default false)."},{"id":"DbTranscriptions","label":"transcriptions","layer":"database","description":"id, user_id (nullable), file_name, language, status, result (jsonb), gladia_result_url, reserved_seconds."},{"id":"DbAnonUsage","label":"anonymous_usage","layer":"database","description":"ip (PK), used_seconds. RLS: each IP reads/writes own row only."},{"id":"DbTgAccounts","label":"telegram_accounts","layer":"database","description":"telegram_id (PK), supabase_user_id, telegram_username. Requires adminClient — RLS blocks user client."},{"id":"DbTgTokens","label":"telegram_link_tokens","layer":"database","description":"token (PK), supabase_user_id, expires_at (15min TTL), used bool."}],"external_services":[{"id":"GladiaAPI","label":"Gladia API v2","layer":"external","description":"Async transcription with speaker diarization. 100+ languages. Upload → start → poll result_url."},{"id":"GroqAPI","label":"Groq API","layer":"external","description":"LLM inference. llama-3.3-70b-versatile. Summary and translation."},{"id":"TelegramAPI","label":"Telegram Bot API","layer":"external","description":"Webhook-based. Sends messages, inline keyboards, documents. @TranscriboAppBot."},{"id":"GoogleOAuth","label":"Google OAuth","layer":"external","description":"OAuth 2.0 via Supabase Auth. prompt=select_account prevents PWA auto-login."},{"id":"Supabase","label":"Supabase","layer":"external","description":"Postgres + Auth + RLS. Two clients: user (RLS-scoped) and admin (service_role)."}],"dependencies":[{"from":"HomeContent","to":"UploadZone","label":""},{"from":"HomeContent","to":"RecordZone","label":""},{"from":"RecordZone","to":"UploadZone","label":"initialFile"},{"from":"UploadZone","to":"ApiTranscribePost","label":"POST file"},{"from":"UploadZone","to":"ApiCredits","label":"pre-check"},{"from":"TranscriptionPage","to":"ApiTranscribeGet","label":"poll 5s"},{"from":"TranscriptionPage","to":"ApiSummary","label":"on-demand"},{"from":"ApiTranscribePost","to":"LibGladia","label":"upload+start"},{"from":"ApiTranscribePost","to":"LibCredits","label":"reserve"},{"from":"ApiTranscribePost","to":"LibApiKeys","label":"key"},{"from":"ApiTranscribePost","to":"DbTranscriptions","label":"insert"},{"from":"ApiTranscribeGet","to":"LibGladia","label":"check"},{"from":"ApiTranscribeGet","to":"LibTranscription","label":"finalise"},{"from":"ApiTranscribeGet","to":"LibCredits","label":"adjust"},{"from":"ApiTranscribeGet","to":"LibApiKeys","label":"key"},{"from":"ApiTranscribeGet","to":"DbTranscriptions","label":"update"},{"from":"ApiSummary","to":"LibGroq","label":"regenerate"},{"from":"ApiSummary","to":"LibApiKeys","label":"key"},{"from":"ApiCredits","to":"LibCredits","label":""},{"from":"ApiWebhook","to":"LibTranscription","label":"processFile"},{"from":"ApiWebhook","to":"LibTelegram","label":""},{"from":"ApiWebhook","to":"LibGroq","label":"sum/trl"},{"from":"ApiWebhook","to":"LibApiKeys","label":"key"},{"from":"ApiWebhook","to":"DbTranscriptions","label":"insert"},{"from":"ApiWebhook","to":"DbTgAccounts","label":"lookup"},{"from":"ApiTelegramConnect","to":"DbTgTokens","label":"create"},{"from":"ApiTelegramConnect","to":"DbTgAccounts","label":"unlink"},{"from":"ApiAuthCallback","to":"DbProfiles","label":"upsert"},{"from":"LibTranscription","to":"LibGladia","label":""},{"from":"LibTranscription","to":"LibGroq","label":""},{"from":"LibGladia","to":"LibApiKeys","label":""},{"from":"LibGroq","to":"LibApiKeys","label":""},{"from":"LibGladia","to":"GladiaAPI","label":""},{"from":"LibGroq","to":"GroqAPI","label":""},{"from":"LibTelegram","to":"TelegramAPI","label":""},{"from":"LibCredits","to":"DbProfiles","label":"RPC"},{"from":"LibCredits","to":"DbAnonUsage","label":"RPC"},{"from":"TelegramAPI","to":"ApiWebhook","label":"webhook"},{"from":"GoogleOAuth","to":"ApiAuthCallback","label":"code"},{"from":"Supabase","to":"DbProfiles","label":""},{"from":"Supabase","to":"DbTranscriptions","label":""},{"from":"Supabase","to":"DbAnonUsage","label":""},{"from":"Supabase","to":"DbTgAccounts","label":""},{"from":"Supabase","to":"DbTgTokens","label":""}],"flows":[{"id":"web_upload","label":"Web: File Upload","color":"#3b82f6","description":"Upload audio/video via browser. Credit check → Gladia async job → 5s polling → summary.","steps":["HomePage","HomeContent","UploadZone","ApiCredits","LibCredits","DbProfiles","ApiTranscribePost","LibApiKeys","LibGladia","GladiaAPI","DbTranscriptions","ApiTranscribeGet","LibTranscription","LibGroq","GroqAPI","TranscriptionPage"]},{"id":"web_record","label":"Web: Browser Recording","color":"#06b6d4","description":"Record audio in browser via MediaRecorder API. Codec auto-detected per browser.","steps":["HomePage","HomeContent","RecordZone","UploadZone","ApiTranscribePost","LibGladia","GladiaAPI","TranscriptionPage"]},{"id":"bot_transcription","label":"Telegram: Transcription","color":"#a855f7","description":"Send audio to bot. Webhook responds <200ms, processes async via processFile().","steps":["TelegramAPI","ApiWebhook","DbTgAccounts","LibTranscription","LibApiKeys","LibGladia","GladiaAPI","LibGroq","GroqAPI","DbTranscriptions","LibTelegram","TelegramAPI"]},{"id":"auth","label":"Auth: Google Sign-In","color":"#f97316","description":"Google OAuth via Supabase. prompt=select_account prevents PWA auto-login.","steps":["LoginPage","GoogleOAuth","ApiAuthCallback","Supabase","DbProfiles","HomePage"]},{"id":"telegram_link","label":"Telegram: Account Linking","color":"#22c55e","description":"One-time deep link generated on website, opened in Telegram, upserts telegram_accounts.","steps":["ConnectTelegramPage","ApiTelegramConnect","DbTgTokens","TelegramAPI","ApiWebhook","DbTgAccounts"]},{"id":"credit_reserve","label":"Credits: Reserve → Adjust","color":"#eab308","description":"Atomic Postgres RPCs. Reserve estimate before upload, adjust to actual duration after Gladia done.","steps":["UploadZone","ApiTranscribePost","LibCredits","DbProfiles","DbAnonUsage","ApiTranscribeGet","LibCredits"]}]};
+
+// ─── Layer config ────────────────────────────────────────────────────────────
+const layerMap = {};
+DATA.layers.forEach(l => layerMap[l.id] = l);
+
+const layerX = { frontend: 0.1, backend: 0.32, lib: 0.54, database: 0.73, external: 0.91 };
+
+// ─── Build nodes + links ─────────────────────────────────────────────────────
+const allNodes = [...DATA.modules, ...DATA.external_services];
+const nodeMap = {};
+allNodes.forEach(n => nodeMap[n.id] = n);
+
+const links = DATA.dependencies.map(d => ({
+  source: d.from, target: d.to, label: d.label
+}));
+
+// ─── Legend ───────────────────────────────────────────────────────────────────
+const legend = document.getElementById('legend');
+DATA.layers.forEach(l => {
+  const item = document.createElement('div');
+  item.className = 'legend-item';
+  item.innerHTML = `<span class="legend-dot" style="background:${l.color}"></span>${l.label}`;
+  legend.appendChild(item);
+});
+
+// ─── Flows list ───────────────────────────────────────────────────────────────
+const flowsList = document.getElementById('flows-list');
+DATA.flows.forEach(f => {
+  const item = document.createElement('div');
+  item.className = 'flow-item';
+  item.id = 'flow-' + f.id;
+  item.innerHTML = `<span class="flow-dot" style="background:${f.color}"></span><div class="flow-text"><div class="flow-label">${f.label}</div><div class="flow-desc">${f.description}</div></div>`;
+  item.addEventListener('click', () => highlightFlow(f.id));
+  flowsList.appendChild(item);
+});
+
+// ─── SVG setup ────────────────────────────────────────────────────────────────
+const svg = d3.select('#graph');
+const g = svg.append('g');
+
+const zoom = d3.zoom().scaleExtent([0.2, 4]).on('zoom', e => g.attr('transform', e.transform));
+svg.call(zoom);
+
+// Markers per layer
+const defs = svg.append('defs');
+DATA.layers.forEach(l => {
+  defs.append('marker')
+    .attr('id', 'arrow-' + l.id)
+    .attr('viewBox', '0 -4 8 8')
+    .attr('refX', 20).attr('refY', 0)
+    .attr('markerWidth', 6).attr('markerHeight', 6)
+    .attr('orient', 'auto')
+    .append('path')
+    .attr('d', 'M0,-4L8,0L0,4')
+    .attr('fill', l.color);
+});
+defs.append('marker')
+  .attr('id', 'arrow-default')
+  .attr('viewBox', '0 -4 8 8')
+  .attr('refX', 20).attr('refY', 0)
+  .attr('markerWidth', 6).attr('markerHeight', 6)
+  .attr('orient', 'auto')
+  .append('path')
+  .attr('d', 'M0,-4L8,0L0,4')
+  .attr('fill', '#444');
+
+// ─── Simulation ───────────────────────────────────────────────────────────────
+let W = document.getElementById('graph-wrap').clientWidth;
+let H = window.innerHeight;
+
+const simulation = d3.forceSimulation(allNodes)
+  .force('link', d3.forceLink(links).id(d => d.id).distance(90).strength(0.4))
+  .force('charge', d3.forceManyBody().strength(-280))
+  .force('collision', d3.forceCollide(36))
+  .force('x', d3.forceX(d => W * (layerX[d.layer] || 0.5)).strength(0.35))
+  .force('y', d3.forceY(H / 2).strength(0.05));
+
+// ─── Draw links ───────────────────────────────────────────────────────────────
+const linkG = g.append('g').attr('class', 'links');
+const linkEl = linkG.selectAll('line')
+  .data(links).enter().append('line')
+  .attr('class', 'link')
+  .attr('stroke', d => {
+    const src = nodeMap[typeof d.source === 'object' ? d.source.id : d.source];
+    return src ? (layerMap[src.layer]?.color || '#444') : '#444';
+  })
+  .attr('stroke-width', 1)
+  .attr('marker-end', d => {
+    const src = nodeMap[typeof d.source === 'object' ? d.source.id : d.source];
+    return src ? `url(#arrow-${src.layer})` : 'url(#arrow-default)';
+  });
+
+// Link labels
+const linkLabelEl = g.append('g').selectAll('text')
+  .data(links.filter(d => d.label)).enter().append('text')
+  .attr('class', 'link-label')
+  .text(d => d.label);
+
+// ─── Draw nodes ───────────────────────────────────────────────────────────────
+const nodeG = g.append('g').attr('class', 'nodes');
+const nodeEl = nodeG.selectAll('g')
+  .data(allNodes).enter().append('g')
+  .attr('class', 'node')
+  .call(d3.drag()
+    .on('start', (e, d) => { if (!e.active) simulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
+    .on('drag', (e, d) => { d.fx = e.x; d.fy = e.y; })
+    .on('end', (e, d) => { if (!e.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; })
+  )
+  .on('click', (e, d) => { e.stopPropagation(); showDetails(d); });
+
+nodeEl.append('circle')
+  .attr('r', 16)
+  .attr('fill', d => (layerMap[d.layer]?.color || '#555') + '22')
+  .attr('stroke', d => layerMap[d.layer]?.color || '#555');
+
+nodeEl.append('text')
+  .attr('dy', 28)
+  .text(d => d.label.length > 18 ? d.label.slice(0, 17) + '…' : d.label);
+
+// Layer icon hints inside circle
+nodeEl.append('text')
+  .attr('dy', 4)
+  .attr('font-size', '9px')
+  .attr('fill', d => layerMap[d.layer]?.color || '#aaa')
+  .attr('text-anchor', 'middle')
+  .text(d => ({ frontend: 'UI', backend: 'API', lib: 'LIB', database: 'DB', external: 'EXT' }[d.layer] || ''));
+
+svg.on('click', () => { clearHighlight(); hideDetails(); });
+
+// ─── Simulation tick ─────────────────────────────────────────────────────────
+simulation.on('tick', () => {
+  linkEl
+    .attr('x1', d => d.source.x).attr('y1', d => d.source.y)
+    .attr('x2', d => d.target.x).attr('y2', d => d.target.y);
+
+  linkLabelEl
+    .attr('x', d => (d.source.x + d.target.x) / 2)
+    .attr('y', d => (d.source.y + d.target.y) / 2 - 4);
+
+  nodeEl.attr('transform', d => `translate(${d.x},${d.y})`);
+});
+
+// Initial zoom to fit after layout settles
+simulation.on('end', () => {
+  const bounds = g.node().getBBox();
+  const pad = 40;
+  const scaleX = (W - pad * 2) / bounds.width;
+  const scaleY = (H - pad * 2) / bounds.height;
+  const scale = Math.min(scaleX, scaleY, 1);
+  const tx = pad - bounds.x * scale + (W - bounds.width * scale) / 2;
+  const ty = pad - bounds.y * scale + (H - bounds.height * scale) / 2;
+  svg.transition().duration(600).call(zoom.transform, d3.zoomIdentity.translate(tx, ty).scale(scale));
+});
+
+// ─── Flow highlighting ────────────────────────────────────────────────────────
+let activeFlow = null;
+
+function highlightFlow(flowId) {
+  if (activeFlow === flowId) { clearHighlight(); return; }
+  activeFlow = flowId;
+
+  const flow = DATA.flows.find(f => f.id === flowId);
+  if (!flow) return;
+
+  const stepSet = new Set(flow.steps);
+
+  // Mark active flow item
+  document.querySelectorAll('.flow-item').forEach(el => el.classList.remove('active'));
+  document.getElementById('flow-' + flowId)?.classList.add('active');
+  document.getElementById('clear-btn').style.display = 'block';
+
+  // Highlight nodes
+  nodeEl.selectAll('circle')
+    .classed('dimmed', d => !stepSet.has(d.id))
+    .classed('highlighted', d => stepSet.has(d.id))
+    .style('stroke-width', d => stepSet.has(d.id) ? '2.5px' : '1.5px');
+
+  nodeEl.selectAll('text')
+    .style('opacity', d => stepSet.has(d.id) ? 1 : 0.15);
+
+  // Highlight links whose both endpoints are in steps
+  linkEl
+    .classed('dimmed', d => !(stepSet.has(d.source.id) && stepSet.has(d.target.id)))
+    .classed('highlighted', d => stepSet.has(d.source.id) && stepSet.has(d.target.id))
+    .style('stroke-width', d => (stepSet.has(d.source.id) && stepSet.has(d.target.id)) ? '2px' : '1px');
+
+  linkLabelEl.style('opacity', d => (stepSet.has(d.source.id) && stepSet.has(d.target.id)) ? 1 : 0.05);
+}
+
+function clearHighlight() {
+  activeFlow = null;
+  document.querySelectorAll('.flow-item').forEach(el => el.classList.remove('active'));
+  document.getElementById('clear-btn').style.display = 'none';
+
+  nodeEl.selectAll('circle')
+    .classed('dimmed', false).classed('highlighted', false)
+    .style('stroke-width', '1.5px');
+  nodeEl.selectAll('text').style('opacity', 1);
+  linkEl.classed('dimmed', false).classed('highlighted', false).style('stroke-width', '1px');
+  linkLabelEl.style('opacity', 1);
+}
+
+// ─── Node details ─────────────────────────────────────────────────────────────
+function showDetails(d) {
+  const panel = document.getElementById('details');
+  const layer = layerMap[d.layer];
+  panel.style.display = 'block';
+  document.getElementById('details-name').textContent = d.label;
+  const badge = document.getElementById('details-layer');
+  badge.textContent = layer?.label || d.layer;
+  badge.style.background = (layer?.color || '#555') + '22';
+  badge.style.color = layer?.color || '#aaa';
+  document.getElementById('details-file').textContent = d.file || '';
+  document.getElementById('details-desc').textContent = d.description || '';
+}
+
+function hideDetails() {
+  document.getElementById('details').style.display = 'none';
+}
+
+// ─── Resize ───────────────────────────────────────────────────────────────────
+window.addEventListener('resize', () => {
+  W = document.getElementById('graph-wrap').clientWidth;
+  H = window.innerHeight;
+  simulation.force('x', d3.forceX(d => W * (layerX[d.layer] || 0.5)).strength(0.35));
+  simulation.force('y', d3.forceY(H / 2).strength(0.05));
+  simulation.alpha(0.1).restart();
+});
+</script>
+</body>
+</html>
