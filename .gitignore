@@ -61,6 +61,10 @@ mempalace.yaml
 entities.json
 docs/superpowers/
 
+# PWA generated service worker (next-pwa build output — not source)
+public/sw.js
+public/workbox-*.js
+
 # unused default Next.js assets
 public/file.svg
 public/globe.svg
