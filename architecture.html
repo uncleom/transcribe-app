@@ -3,307 +3,468 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Transcribo — Architecture</title>
+<title>Transcribo — Architecture & Flows</title>
 <style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: #0a0a0a; color: #e5e5e5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; display: flex; height: 100vh; overflow: hidden; }
-  #graph-wrap { flex: 1; position: relative; overflow: hidden; }
-  svg { width: 100%; height: 100%; cursor: grab; }
-  svg:active { cursor: grabbing; }
-  #sidebar { width: 300px; flex-shrink: 0; background: #111; border-left: 1px solid #222; display: flex; flex-direction: column; overflow: hidden; }
-  #sidebar-header { padding: 16px; border-bottom: 1px solid #222; }
-  #sidebar-header h1 { font-size: 14px; font-weight: 600; color: #fff; }
-  #sidebar-header p { font-size: 11px; color: #555; margin-top: 2px; }
-  #legend { padding: 12px 16px; border-bottom: 1px solid #222; display: flex; flex-wrap: wrap; gap: 8px; }
-  .legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: #888; }
-  .legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-  #flows-section { padding: 12px 16px 6px; }
-  #flows-section h2 { font-size: 11px; font-weight: 600; color: #666; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px; }
-  #flows-list { overflow-y: auto; }
-  .flow-item { display: flex; align-items: flex-start; gap: 8px; padding: 8px 16px; cursor: pointer; border-left: 2px solid transparent; transition: background 0.15s; }
-  .flow-item:hover { background: #1a1a1a; }
-  .flow-item.active { background: #1a1a1a; }
-  .flow-dot { width: 10px; height: 10px; border-radius: 50%; margin-top: 3px; flex-shrink: 0; }
-  .flow-text { flex: 1; }
-  .flow-label { font-size: 12px; font-weight: 500; color: #ccc; }
-  .flow-desc { font-size: 11px; color: #555; margin-top: 2px; line-height: 1.4; }
-  #clear-btn { display: none; margin: 4px 16px 8px; padding: 4px 10px; background: #1e1e1e; border: 1px solid #333; border-radius: 6px; color: #888; font-size: 11px; cursor: pointer; }
-  #clear-btn:hover { background: #252525; color: #ccc; }
-  #details { padding: 12px 16px; border-top: 1px solid #222; flex-shrink: 0; display: none; }
-  #details h2 { font-size: 11px; font-weight: 600; color: #666; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px; }
-  #details-name { font-size: 13px; font-weight: 600; color: #fff; }
-  #details-layer { display: inline-block; font-size: 10px; padding: 2px 7px; border-radius: 10px; margin: 4px 0 6px; font-weight: 500; }
-  #details-file { font-size: 11px; color: #555; font-family: monospace; margin-bottom: 6px; }
-  #details-desc { font-size: 12px; color: #888; line-height: 1.5; }
-  .node circle { stroke-width: 1.5; cursor: pointer; transition: opacity 0.2s; }
-  .node text { font-size: 10px; fill: #ccc; pointer-events: none; text-anchor: middle; }
-  .link { stroke-opacity: 0.4; transition: stroke-opacity 0.2s, opacity 0.2s; }
-  .link-label { font-size: 9px; fill: #555; pointer-events: none; }
-  .dimmed { opacity: 0.08 !important; }
-  .highlighted { opacity: 1 !important; stroke-opacity: 0.9 !important; }
-  marker path { fill-opacity: 0.5; }
-  marker.highlighted path { fill-opacity: 1; }
-  #hint { position: absolute; bottom: 12px; left: 12px; font-size: 10px; color: #333; }
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{background:#0d0d0d;color:#d4d4d4;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;display:flex;height:100vh;overflow:hidden}
+#graph-wrap{flex:1;position:relative;overflow:hidden}
+svg{width:100%;height:100%;cursor:grab}
+svg:active{cursor:grabbing}
+.node-rect{stroke-width:1.5;rx:8;ry:8;transition:all .2s}
+.node-label{font-size:11px;fill:#d4d4d4;pointer-events:none;dominant-baseline:central;text-anchor:middle}
+.node-layer{font-size:8px;fill:#555;pointer-events:none;dominant-baseline:central;text-anchor:middle;text-transform:uppercase;letter-spacing:.06em}
+.edge{fill:none;stroke-opacity:.25;stroke-width:1.2}
+.edge-label{font-size:9px;fill:#444;pointer-events:none}
+.arrowhead{stroke:none}
+.dimmed{opacity:.06!important}
+.active-node rect{stroke-width:2.5!important}
+#hint{position:absolute;bottom:10px;left:12px;font-size:10px;color:#2a2a2a;letter-spacing:.03em}
+
+/* Sidebar */
+#sidebar{width:310px;flex-shrink:0;background:#111;border-left:1px solid #1e1e1e;display:flex;flex-direction:column;overflow:hidden}
+#sb-head{padding:16px 16px 12px;border-bottom:1px solid #1e1e1e}
+#sb-head h1{font-size:13px;font-weight:600;color:#f0f0f0}
+#sb-head p{font-size:11px;color:#444;margin-top:2px}
+#sb-desc{padding:10px 16px 8px;border-bottom:1px solid #1e1e1e;font-size:10px;color:#444;line-height:1.5}
+#legend{padding:10px 16px;border-bottom:1px solid #1e1e1e;display:flex;flex-wrap:wrap;gap:6px 10px}
+.leg{display:flex;align-items:center;gap:5px;font-size:10px;color:#666}
+.leg-dot{width:7px;height:7px;border-radius:2px;flex-shrink:0}
+#flows-head{padding:10px 16px 6px;display:flex;align-items:center;justify-content:space-between}
+#flows-head h2{font-size:10px;font-weight:600;color:#555;text-transform:uppercase;letter-spacing:.08em}
+#clear-btn{font-size:10px;color:#444;background:none;border:none;cursor:pointer;padding:2px 6px;border-radius:4px;display:none}
+#clear-btn:hover{color:#888;background:#1a1a1a}
+#flows-list{overflow-y:auto;border-bottom:1px solid #1e1e1e;max-height:220px}
+.flow-row{display:flex;align-items:flex-start;gap:9px;padding:8px 16px;cursor:pointer;border-left:2px solid transparent;transition:background .12s}
+.flow-row:hover{background:#161616}
+.flow-row.active{background:#161616}
+.flow-color{width:8px;height:8px;border-radius:2px;margin-top:3px;flex-shrink:0}
+.flow-info{}
+.flow-name{font-size:12px;font-weight:500;color:#bbb;line-height:1.3}
+.flow-desc{font-size:10px;color:#484848;margin-top:2px;line-height:1.4}
+
+/* Steps panel */
+#steps-panel{flex:1;overflow-y:auto;display:none}
+#steps-head{padding:10px 16px 6px;border-bottom:1px solid #1e1e1e;font-size:10px;font-weight:600;color:#555;text-transform:uppercase;letter-spacing:.08em;display:flex;align-items:center;gap:6px}
+#steps-flow-color{width:8px;height:8px;border-radius:2px;flex-shrink:0}
+#steps-flow-name{color:#999}
+#steps-list{padding:8px 0}
+.step-row{display:flex;align-items:flex-start;gap:10px;padding:6px 16px;border-left:2px solid transparent}
+.step-row.current{background:#161616}
+.step-num{font-size:10px;font-weight:600;color:#333;min-width:16px;flex-shrink:0;margin-top:1px}
+.step-content{}
+.step-name{font-size:11px;font-weight:500;color:#aaa}
+.step-file{font-size:9px;color:#383838;font-family:monospace;margin-top:1px}
+
+/* Details panel */
+#details{flex-shrink:0;padding:12px 16px;border-top:1px solid #1e1e1e;display:none}
+#details h2{font-size:10px;font-weight:600;color:#555;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px}
+#det-name{font-size:13px;font-weight:600;color:#e0e0e0}
+#det-badge{display:inline-block;font-size:9px;padding:2px 7px;border-radius:10px;margin:4px 0 6px;font-weight:600;letter-spacing:.04em}
+#det-file{font-size:10px;color:#3a3a3a;font-family:monospace;margin-bottom:6px}
+#det-desc{font-size:11px;color:#666;line-height:1.5}
 </style>
 </head>
 <body>
-
 <div id="graph-wrap">
   <svg id="graph"></svg>
-  <div id="hint">Scroll to zoom · Drag to pan · Click node for details · Click flow to highlight</div>
+  <div id="hint">Every package and external service that powers Transcribo · Pick a flow on the right to highlight the path through the system and see what gets passed at each step</div>
 </div>
 
 <div id="sidebar">
-  <div id="sidebar-header">
-    <h1>Transcribo Architecture</h1>
-    <p>transcribe-app · interactive dependency graph</p>
+  <div id="sb-head">
+    <h1>Transcribo — Architecture & Flows</h1>
+    <p>transcribe-app · interactive module graph</p>
   </div>
   <div id="legend"></div>
-  <div id="flows-section">
+  <div id="flows-head">
     <h2>Flows</h2>
-    <button id="clear-btn" onclick="clearHighlight()">✕ Clear highlight</button>
-    <div id="flows-list"></div>
+    <button id="clear-btn" onclick="clearHighlight()">✕ clear</button>
+  </div>
+  <div id="flows-list"></div>
+  <div id="steps-panel">
+    <div id="steps-head">
+      <span id="steps-flow-color"></span>
+      <span id="steps-flow-name"></span>
+    </div>
+    <div id="steps-list"></div>
   </div>
   <div id="details">
-    <h2>Node Details</h2>
-    <div id="details-name"></div>
-    <div id="details-layer"></div>
-    <div id="details-file"></div>
-    <div id="details-desc"></div>
+    <h2>Module</h2>
+    <div id="det-name"></div>
+    <div id="det-badge"></div>
+    <div id="det-file"></div>
+    <div id="det-desc"></div>
   </div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
 <script>
-const DATA = {"project":"transcribe-app","layers":[{"id":"frontend","label":"Frontend","color":"#3b82f6"},{"id":"backend","label":"Backend / API","color":"#22c55e"},{"id":"lib","label":"Shared Library","color":"#06b6d4"},{"id":"database","label":"Database","color":"#f97316"},{"id":"external","label":"External Services","color":"#a855f7"}],"modules":[{"id":"HomePage","label":"Home Page","layer":"frontend","file":"src/app/page.tsx","description":"Server Component. Fetches user profile, credits, telegram_accounts. Renders HomeContent + Telegram promo card (hidden if already connected)."},{"id":"HomeContent","label":"HomeContent","layer":"frontend","file":"src/components/HomeContent.tsx","description":"Client Component. Toggle between Upload and Record modes. Passes recorded File as initialFile to UploadZone."},{"id":"UploadZone","label":"UploadZone","layer":"frontend","file":"src/components/UploadZone.tsx","description":"Client Component. Drag-drop or file picker. Detects duration via HTMLVideoElement, calls /api/credits, uploads via XHR. Accepts initialFile from RecordZone."},{"id":"RecordZone","label":"RecordZone","layer":"frontend","file":"src/components/RecordZone.tsx","description":"Cross-browser audio recording via MediaRecorder API. Codec priority: webm+opus → webm → mp4 → ogg. On stop emits File to HomeContent."},{"id":"TranscriptionPage","label":"Transcription Page","layer":"frontend","file":"src/app/transcription/[id]/page.tsx","description":"Client Component. Polls GET /api/transcribe/[id] every 5s. Shows Text / Timestamps / Summary tabs. On-demand summary translation via POST summary endpoint."},{"id":"HistoryPage","label":"History Page","layer":"frontend","file":"src/app/history/page.tsx","description":"Server Component. Protected — redirects to /login if no session."},{"id":"BillingPage","label":"Billing Page","layer":"frontend","file":"src/app/billing/page.tsx","description":"Shows credit balance and Telegram link status via TelegramLinkButton."},{"id":"ConnectTelegramPage","label":"Connect Telegram","layer":"frontend","file":"src/app/connect-telegram/page.tsx","description":"Feature highlights + TelegramLinkButton. Checks if already linked via adminClient."},{"id":"LoginPage","label":"Login Page","layer":"frontend","file":"src/app/login/page.tsx","description":"Calls Supabase signInWithOAuth (Google) with prompt=select_account to prevent auto-login in PWA."},{"id":"ApiTranscribePost","label":"POST /api/transcribe","layer":"backend","file":"src/app/api/transcribe/route.ts","description":"Validates MIME type (strips codec params), resolves Gladia key, reserves credits, uploads to Gladia, starts job, saves DB record with status=processing."},{"id":"ApiTranscribeGet","label":"GET /api/transcribe/[id]","layer":"backend","file":"src/app/api/transcribe/[id]/route.ts","description":"Owner-check (404 not 403). Polls Gladia once. On done: finaliseGladiaResult → update DB → adjustCredits."},{"id":"ApiSummary","label":"POST …/summary","layer":"backend","file":"src/app/api/transcribe/[id]/summary/route.ts","description":"Regenerates summary via Groq in requested language. Not cached to DB — on-demand only."},{"id":"ApiCredits","label":"GET /api/credits","layer":"backend","file":"src/app/api/credits/route.ts","description":"Returns {sufficient, remaining} for current user (cookie) or anonymous IP."},{"id":"ApiWebhook","label":"POST /api/telegram/webhook","layer":"backend","file":"src/app/api/telegram/webhook/route.ts","description":"Responds 200 immediately, runs processUpdate async (Telegram requires <5s). Handles audio messages and callback_query (sum/trs/trl)."},{"id":"ApiTelegramConnect","label":"/api/telegram/connect","layer":"backend","file":"src/app/api/telegram/connect/route.ts","description":"POST: generates one-time deep link token (15min TTL). DELETE: unlinks account."},{"id":"ApiAuthCallback","label":"GET /auth/callback","layer":"backend","file":"src/app/auth/callback/route.ts","description":"OAuth callback handler. Exchanges code for session, redirects to home."},{"id":"LibTranscription","label":"transcription.ts","layer":"lib","file":"src/lib/transcription.ts","description":"Single pipeline for web and bot. processFile() (bot: full sync) and finaliseGladiaResult() (web). Both call addSummary. formatTranscriptText() skips speaker labels if only one speaker."},{"id":"LibGladia","label":"gladia.ts","layer":"lib","file":"src/lib/gladia.ts","description":"Gladia API v2 client. uploadAudio, startTranscription, checkTranscriptionStatus, pollTranscription (5s interval, max 60 attempts). All accept apiKey param."},{"id":"LibGroq","label":"groq.ts","layer":"lib","file":"src/lib/groq.ts","description":"Groq API client. summariseTranscript and translateTranscript. Model: llama-3.3-70b-versatile."},{"id":"LibCredits","label":"credits.ts","layer":"lib","file":"src/lib/credits.ts","description":"CreditSubject = user|anon. Atomic Postgres RPCs: reserveCredits, adjustCredits, refundCredits. Anonymous limit: 180s by IP."},{"id":"LibApiKeys","label":"api-keys.ts","layer":"lib","file":"src/lib/api-keys.ts","description":"resolveGladiaKey(userId) and resolveGroqKey(userId). OWNER_USER_ID → personal keys; others → *_PUBLIC keys with fallback."},{"id":"LibTelegram","label":"telegram.ts","layer":"lib","file":"src/lib/telegram.ts","description":"Telegram Bot API helpers. sendMessage, sendTextOrFile (file if >4096 chars), getFileInfo, downloadFile, inline keyboard builders."},{"id":"DbProfiles","label":"profiles","layer":"database","description":"id, email, credits_seconds (default 1200), is_unlimited (default false)."},{"id":"DbTranscriptions","label":"transcriptions","layer":"database","description":"id, user_id (nullable), file_name, language, status, result (jsonb), gladia_result_url, reserved_seconds."},{"id":"DbAnonUsage","label":"anonymous_usage","layer":"database","description":"ip (PK), used_seconds. RLS: each IP reads/writes own row only."},{"id":"DbTgAccounts","label":"telegram_accounts","layer":"database","description":"telegram_id (PK), supabase_user_id, telegram_username. Requires adminClient — RLS blocks user client."},{"id":"DbTgTokens","label":"telegram_link_tokens","layer":"database","description":"token (PK), supabase_user_id, expires_at (15min TTL), used bool."}],"external_services":[{"id":"GladiaAPI","label":"Gladia API v2","layer":"external","description":"Async transcription with speaker diarization. 100+ languages. Upload → start → poll result_url."},{"id":"GroqAPI","label":"Groq API","layer":"external","description":"LLM inference. llama-3.3-70b-versatile. Summary and translation."},{"id":"TelegramAPI","label":"Telegram Bot API","layer":"external","description":"Webhook-based. Sends messages, inline keyboards, documents. @TranscriboAppBot."},{"id":"GoogleOAuth","label":"Google OAuth","layer":"external","description":"OAuth 2.0 via Supabase Auth. prompt=select_account prevents PWA auto-login."},{"id":"Supabase","label":"Supabase","layer":"external","description":"Postgres + Auth + RLS. Two clients: user (RLS-scoped) and admin (service_role)."}],"dependencies":[{"from":"HomeContent","to":"UploadZone","label":""},{"from":"HomeContent","to":"RecordZone","label":""},{"from":"RecordZone","to":"UploadZone","label":"initialFile"},{"from":"UploadZone","to":"ApiTranscribePost","label":"POST file"},{"from":"UploadZone","to":"ApiCredits","label":"pre-check"},{"from":"TranscriptionPage","to":"ApiTranscribeGet","label":"poll 5s"},{"from":"TranscriptionPage","to":"ApiSummary","label":"on-demand"},{"from":"ApiTranscribePost","to":"LibGladia","label":"upload+start"},{"from":"ApiTranscribePost","to":"LibCredits","label":"reserve"},{"from":"ApiTranscribePost","to":"LibApiKeys","label":"key"},{"from":"ApiTranscribePost","to":"DbTranscriptions","label":"insert"},{"from":"ApiTranscribeGet","to":"LibGladia","label":"check"},{"from":"ApiTranscribeGet","to":"LibTranscription","label":"finalise"},{"from":"ApiTranscribeGet","to":"LibCredits","label":"adjust"},{"from":"ApiTranscribeGet","to":"LibApiKeys","label":"key"},{"from":"ApiTranscribeGet","to":"DbTranscriptions","label":"update"},{"from":"ApiSummary","to":"LibGroq","label":"regenerate"},{"from":"ApiSummary","to":"LibApiKeys","label":"key"},{"from":"ApiCredits","to":"LibCredits","label":""},{"from":"ApiWebhook","to":"LibTranscription","label":"processFile"},{"from":"ApiWebhook","to":"LibTelegram","label":""},{"from":"ApiWebhook","to":"LibGroq","label":"sum/trl"},{"from":"ApiWebhook","to":"LibApiKeys","label":"key"},{"from":"ApiWebhook","to":"DbTranscriptions","label":"insert"},{"from":"ApiWebhook","to":"DbTgAccounts","label":"lookup"},{"from":"ApiTelegramConnect","to":"DbTgTokens","label":"create"},{"from":"ApiTelegramConnect","to":"DbTgAccounts","label":"unlink"},{"from":"ApiAuthCallback","to":"DbProfiles","label":"upsert"},{"from":"LibTranscription","to":"LibGladia","label":""},{"from":"LibTranscription","to":"LibGroq","label":""},{"from":"LibGladia","to":"LibApiKeys","label":""},{"from":"LibGroq","to":"LibApiKeys","label":""},{"from":"LibGladia","to":"GladiaAPI","label":""},{"from":"LibGroq","to":"GroqAPI","label":""},{"from":"LibTelegram","to":"TelegramAPI","label":""},{"from":"LibCredits","to":"DbProfiles","label":"RPC"},{"from":"LibCredits","to":"DbAnonUsage","label":"RPC"},{"from":"TelegramAPI","to":"ApiWebhook","label":"webhook"},{"from":"GoogleOAuth","to":"ApiAuthCallback","label":"code"},{"from":"Supabase","to":"DbProfiles","label":""},{"from":"Supabase","to":"DbTranscriptions","label":""},{"from":"Supabase","to":"DbAnonUsage","label":""},{"from":"Supabase","to":"DbTgAccounts","label":""},{"from":"Supabase","to":"DbTgTokens","label":""}],"flows":[{"id":"web_upload","label":"Web: File Upload","color":"#3b82f6","description":"Upload audio/video via browser. Credit check → Gladia async job → 5s polling → summary.","steps":["HomePage","HomeContent","UploadZone","ApiCredits","LibCredits","DbProfiles","ApiTranscribePost","LibApiKeys","LibGladia","GladiaAPI","DbTranscriptions","ApiTranscribeGet","LibTranscription","LibGroq","GroqAPI","TranscriptionPage"]},{"id":"web_record","label":"Web: Browser Recording","color":"#06b6d4","description":"Record audio in browser via MediaRecorder API. Codec auto-detected per browser.","steps":["HomePage","HomeContent","RecordZone","UploadZone","ApiTranscribePost","LibGladia","GladiaAPI","TranscriptionPage"]},{"id":"bot_transcription","label":"Telegram: Transcription","color":"#a855f7","description":"Send audio to bot. Webhook responds <200ms, processes async via processFile().","steps":["TelegramAPI","ApiWebhook","DbTgAccounts","LibTranscription","LibApiKeys","LibGladia","GladiaAPI","LibGroq","GroqAPI","DbTranscriptions","LibTelegram","TelegramAPI"]},{"id":"auth","label":"Auth: Google Sign-In","color":"#f97316","description":"Google OAuth via Supabase. prompt=select_account prevents PWA auto-login.","steps":["LoginPage","GoogleOAuth","ApiAuthCallback","Supabase","DbProfiles","HomePage"]},{"id":"telegram_link","label":"Telegram: Account Linking","color":"#22c55e","description":"One-time deep link generated on website, opened in Telegram, upserts telegram_accounts.","steps":["ConnectTelegramPage","ApiTelegramConnect","DbTgTokens","TelegramAPI","ApiWebhook","DbTgAccounts"]},{"id":"credit_reserve","label":"Credits: Reserve → Adjust","color":"#eab308","description":"Atomic Postgres RPCs. Reserve estimate before upload, adjust to actual duration after Gladia done.","steps":["UploadZone","ApiTranscribePost","LibCredits","DbProfiles","DbAnonUsage","ApiTranscribeGet","LibCredits"]}]};
+// ─── Data ────────────────────────────────────────────────────────────────────
+const LAYERS = [
+  {id:'frontend', label:'Frontend',         color:'#3b82f6'},
+  {id:'backend',  label:'Backend / API',    color:'#22c55e'},
+  {id:'lib',      label:'Shared Library',   color:'#06b6d4'},
+  {id:'database', label:'Database',         color:'#f97316'},
+  {id:'external', label:'External Services',color:'#a855f7'},
+];
+const LAYER = {};
+LAYERS.forEach(l => LAYER[l.id] = l);
 
-// ─── Layer config ────────────────────────────────────────────────────────────
-const layerMap = {};
-DATA.layers.forEach(l => layerMap[l.id] = l);
+const NODES = [
+  {id:'HomePage',           label:'Home Page',              layer:'frontend', file:'src/app/page.tsx',                      desc:'Server Component. Fetches profile, credits, telegram_accounts (adminClient). Shows Telegram promo card only when not yet connected.'},
+  {id:'HomeContent',        label:'HomeContent',            layer:'frontend', file:'src/components/HomeContent.tsx',         desc:'Toggle between Upload and Record modes. Passes recorded File as initialFile to UploadZone.'},
+  {id:'UploadZone',         label:'UploadZone',             layer:'frontend', file:'src/components/UploadZone.tsx',          desc:'Drag-drop or file picker. Detects duration via HTMLVideoElement, checks credits, XHR upload with progress. Accepts initialFile prop.'},
+  {id:'RecordZone',         label:'RecordZone',             layer:'frontend', file:'src/components/RecordZone.tsx',          desc:'Cross-browser recording via MediaRecorder. Codec priority: webm+opus → webm → mp4 → ogg. On stop emits File to HomeContent.'},
+  {id:'TranscriptionPage',  label:'Transcription Page',     layer:'frontend', file:'src/app/transcription/[id]/page.tsx',   desc:'Client Component. Polls GET /api/transcribe/[id] every 5s. Tabs: Text / Timestamps / Summary. On-demand translation.'},
+  {id:'HistoryPage',        label:'History Page',           layer:'frontend', file:'src/app/history/page.tsx',              desc:'Server Component. Protected. Lists transcriptions ordered by created_at desc.'},
+  {id:'BillingPage',        label:'Billing Page',           layer:'frontend', file:'src/app/billing/page.tsx',              desc:'Shows credit balance and Telegram link status via TelegramLinkButton.'},
+  {id:'ConnectTelegramPage',label:'Connect Telegram',       layer:'frontend', file:'src/app/connect-telegram/page.tsx',     desc:'Feature highlights + TelegramLinkButton. Hides if already linked.'},
+  {id:'LoginPage',          label:'Login Page',             layer:'frontend', file:'src/app/login/page.tsx',                desc:'Google OAuth via Supabase with prompt=select_account to prevent PWA auto-login.'},
 
-const layerX = { frontend: 0.1, backend: 0.32, lib: 0.54, database: 0.73, external: 0.91 };
+  {id:'ApiTranscribePost',  label:'POST /api/transcribe',   layer:'backend', file:'src/app/api/transcribe/route.ts',         desc:'Validates MIME (strips codec params), resolves Gladia key, reserves credits, uploads to Gladia, starts job, saves DB record status=processing.'},
+  {id:'ApiTranscribeGet',   label:'GET /api/transcribe/[id]',layer:'backend',file:'src/app/api/transcribe/[id]/route.ts',   desc:'Owner-check returns 404 (not 403). Polls Gladia once. On done: finaliseGladiaResult → update DB → adjustCredits.'},
+  {id:'ApiSummary',         label:'POST …/summary',         layer:'backend', file:'src/app/api/transcribe/[id]/summary',     desc:'Regenerates summary via Groq in requested language. Not cached to DB.'},
+  {id:'ApiCredits',         label:'GET /api/credits',       layer:'backend', file:'src/app/api/credits/route.ts',            desc:'Returns {sufficient, remaining} for current user (cookie) or anonymous IP.'},
+  {id:'ApiWebhook',         label:'POST /api/telegram/webhook',layer:'backend',file:'src/app/api/telegram/webhook/route.ts',desc:'Responds 200 immediately, runs processUpdate async (<5s Telegram limit). Handles audio and callback_query (sum/trs/trl). stripMarkdown() before send.'},
+  {id:'ApiTgConnect',       label:'/api/telegram/connect',  layer:'backend', file:'src/app/api/telegram/connect/route.ts',  desc:'POST: one-time deep link token (15min TTL). DELETE: unlinks account.'},
+  {id:'ApiAuthCallback',    label:'GET /auth/callback',     layer:'backend', file:'src/app/auth/callback/route.ts',          desc:'OAuth callback. Exchanges code for session, redirects home.'},
 
-// ─── Build nodes + links ─────────────────────────────────────────────────────
-const allNodes = [...DATA.modules, ...DATA.external_services];
-const nodeMap = {};
-allNodes.forEach(n => nodeMap[n.id] = n);
+  {id:'LibTranscription',   label:'transcription.ts',       layer:'lib', file:'src/lib/transcription.ts',  desc:'Single pipeline for web and bot. processFile() (bot sync) + finaliseGladiaResult() (web). formatTranscriptText() skips speaker labels for single-speaker.'},
+  {id:'LibGladia',          label:'gladia.ts',               layer:'lib', file:'src/lib/gladia.ts',          desc:'Gladia API v2 client. All functions accept apiKey param. pollTranscription: 5s interval, max 60 attempts.'},
+  {id:'LibGroq',            label:'groq.ts',                 layer:'lib', file:'src/lib/groq.ts',            desc:'Groq client. summariseTranscript + translateTranscript. Model: llama-3.3-70b-versatile.'},
+  {id:'LibCredits',         label:'credits.ts',              layer:'lib', file:'src/lib/credits.ts',         desc:'CreditSubject = user|anon. Atomic Postgres RPCs: reserve, adjust, refund. Anon limit: 180s by IP.'},
+  {id:'LibApiKeys',         label:'api-keys.ts',             layer:'lib', file:'src/lib/api-keys.ts',        desc:'resolveGladiaKey/resolveGroqKey(userId). OWNER_USER_ID → personal keys; others → *_PUBLIC with fallback.'},
+  {id:'LibTelegram',        label:'telegram.ts',             layer:'lib', file:'src/lib/telegram.ts',        desc:'Telegram Bot API helpers. sendTextOrFile splits to file if >4096 chars. stripMarkdown before send.'},
 
-const links = DATA.dependencies.map(d => ({
-  source: d.from, target: d.to, label: d.label
-}));
+  {id:'DbProfiles',         label:'profiles',                layer:'database', desc:'id, email, credits_seconds (default 1200), is_unlimited.'},
+  {id:'DbTranscriptions',   label:'transcriptions',          layer:'database', desc:'id, user_id (nullable), file_name, language, status, result (jsonb), gladia_result_url, reserved_seconds.'},
+  {id:'DbAnonUsage',        label:'anonymous_usage',         layer:'database', desc:'ip (PK), used_seconds. RLS: each IP owns its row.'},
+  {id:'DbTgAccounts',       label:'telegram_accounts',       layer:'database', desc:'telegram_id (PK) → supabase_user_id. Requires adminClient — RLS blocks user client.'},
+  {id:'DbTgTokens',         label:'telegram_link_tokens',    layer:'database', desc:'token (PK), expires_at (15min TTL), used bool.'},
+
+  {id:'GladiaAPI',          label:'Gladia API v2',           layer:'external', desc:'Async transcription + speaker diarization. 100+ languages. upload → start → poll result_url.'},
+  {id:'GroqAPI',            label:'Groq API',                layer:'external', desc:'LLM inference. llama-3.3-70b-versatile. Summary and on-demand translation.'},
+  {id:'TelegramAPI',        label:'Telegram Bot API',        layer:'external', desc:'Webhook-based. Sends messages, inline keyboards, documents. @TranscriboAppBot.'},
+  {id:'GoogleOAuth',        label:'Google OAuth',            layer:'external', desc:'OAuth 2.0 via Supabase Auth. prompt=select_account prevents PWA auto-login with previous account.'},
+  {id:'Supabase',           label:'Supabase',                layer:'external', desc:'Postgres + Auth + RLS. Two clients: user (RLS-scoped) and admin (service_role, bypasses RLS).'},
+];
+
+const EDGES = [
+  {s:'HomeContent',       t:'UploadZone',        l:''},
+  {s:'HomeContent',       t:'RecordZone',        l:''},
+  {s:'RecordZone',        t:'UploadZone',        l:'initialFile'},
+  {s:'UploadZone',        t:'ApiTranscribePost', l:'POST file'},
+  {s:'UploadZone',        t:'ApiCredits',        l:'pre-check'},
+  {s:'TranscriptionPage', t:'ApiTranscribeGet',  l:'poll 5s'},
+  {s:'TranscriptionPage', t:'ApiSummary',        l:'on-demand'},
+  {s:'ApiTranscribePost', t:'LibGladia',         l:'upload+start'},
+  {s:'ApiTranscribePost', t:'LibCredits',        l:'reserve'},
+  {s:'ApiTranscribePost', t:'LibApiKeys',        l:'key'},
+  {s:'ApiTranscribePost', t:'DbTranscriptions',  l:'insert'},
+  {s:'ApiTranscribeGet',  t:'LibGladia',         l:'check'},
+  {s:'ApiTranscribeGet',  t:'LibTranscription',  l:'finalise'},
+  {s:'ApiTranscribeGet',  t:'LibCredits',        l:'adjust'},
+  {s:'ApiTranscribeGet',  t:'LibApiKeys',        l:'key'},
+  {s:'ApiTranscribeGet',  t:'DbTranscriptions',  l:'update'},
+  {s:'ApiSummary',        t:'LibGroq',           l:''},
+  {s:'ApiSummary',        t:'LibApiKeys',        l:'key'},
+  {s:'ApiCredits',        t:'LibCredits',        l:''},
+  {s:'ApiWebhook',        t:'LibTranscription',  l:'processFile'},
+  {s:'ApiWebhook',        t:'LibTelegram',       l:''},
+  {s:'ApiWebhook',        t:'LibGroq',           l:'sum/trl'},
+  {s:'ApiWebhook',        t:'LibApiKeys',        l:'key'},
+  {s:'ApiWebhook',        t:'DbTranscriptions',  l:'insert'},
+  {s:'ApiWebhook',        t:'DbTgAccounts',      l:'lookup'},
+  {s:'ApiTgConnect',      t:'DbTgTokens',        l:'create'},
+  {s:'ApiTgConnect',      t:'DbTgAccounts',      l:'unlink'},
+  {s:'ApiAuthCallback',   t:'DbProfiles',        l:'upsert'},
+  {s:'LibTranscription',  t:'LibGladia',         l:''},
+  {s:'LibTranscription',  t:'LibGroq',           l:''},
+  {s:'LibGladia',         t:'LibApiKeys',        l:''},
+  {s:'LibGroq',           t:'LibApiKeys',        l:''},
+  {s:'LibGladia',         t:'GladiaAPI',         l:''},
+  {s:'LibGroq',           t:'GroqAPI',           l:''},
+  {s:'LibTelegram',       t:'TelegramAPI',       l:''},
+  {s:'LibCredits',        t:'DbProfiles',        l:'RPC'},
+  {s:'LibCredits',        t:'DbAnonUsage',       l:'RPC'},
+  {s:'TelegramAPI',       t:'ApiWebhook',        l:'webhook'},
+  {s:'GoogleOAuth',       t:'ApiAuthCallback',   l:'code'},
+  {s:'Supabase',          t:'DbProfiles',        l:''},
+  {s:'Supabase',          t:'DbTranscriptions',  l:''},
+  {s:'Supabase',          t:'DbAnonUsage',       l:''},
+  {s:'Supabase',          t:'DbTgAccounts',      l:''},
+  {s:'Supabase',          t:'DbTgTokens',        l:''},
+];
+
+const FLOWS = [
+  {id:'web_upload',    label:'Web: File Upload',        color:'#3b82f6',
+   desc:'Upload audio/video via browser. Credit check → Gladia async job → 5s polling → AI summary.',
+   steps:['HomePage','HomeContent','UploadZone','ApiCredits','LibCredits','DbProfiles','ApiTranscribePost','LibApiKeys','LibGladia','GladiaAPI','DbTranscriptions','ApiTranscribeGet','LibTranscription','LibGroq','GroqAPI','TranscriptionPage']},
+  {id:'web_record',    label:'Web: Browser Recording',  color:'#06b6d4',
+   desc:'Record in browser via MediaRecorder API. Codec auto-detected per browser. Same upload pipeline.',
+   steps:['HomePage','HomeContent','RecordZone','UploadZone','ApiTranscribePost','LibGladia','GladiaAPI','TranscriptionPage']},
+  {id:'bot_tx',        label:'Telegram: Transcription', color:'#a855f7',
+   desc:'Send audio to @TranscriboAppBot. Webhook responds <200ms, processes via processFile() async.',
+   steps:['TelegramAPI','ApiWebhook','DbTgAccounts','LibTranscription','LibApiKeys','LibGladia','GladiaAPI','LibGroq','GroqAPI','DbTranscriptions','LibTelegram','TelegramAPI']},
+  {id:'auth',          label:'Auth: Google Sign-In',    color:'#f97316',
+   desc:'Google OAuth via Supabase. prompt=select_account prevents auto-login on saved PWA icon.',
+   steps:['LoginPage','GoogleOAuth','ApiAuthCallback','Supabase','DbProfiles','HomePage']},
+  {id:'tg_link',       label:'Telegram: Account Linking',color:'#22c55e',
+   desc:'One-time deep link generated on site, opened in Telegram, bot handles /start link_TOKEN.',
+   steps:['ConnectTelegramPage','ApiTgConnect','DbTgTokens','TelegramAPI','ApiWebhook','DbTgAccounts']},
+  {id:'credits',       label:'Credits: Reserve → Adjust',color:'#eab308',
+   desc:'Atomic Postgres RPCs. Reserve estimate pre-upload, adjust to actual Gladia duration post-done.',
+   steps:['UploadZone','ApiTranscribePost','LibCredits','DbProfiles','DbAnonUsage','ApiTranscribeGet','LibCredits']},
+];
+
+// ─── Node lookup ─────────────────────────────────────────────────────────────
+const NM = {};
+NODES.forEach(n => NM[n.id] = n);
+
+// ─── Column layout ────────────────────────────────────────────────────────────
+const NODE_W = 162, NODE_H = 38, COL_GAP = 70, ROW_GAP = 16;
+const LAYER_ORDER = ['frontend','backend','lib','database','external'];
+
+// Sort nodes within each column: by average y of connected opposite-column nodes (topo order hint)
+const colNodes = {};
+LAYER_ORDER.forEach(l => colNodes[l] = NODES.filter(n => n.layer === l));
+
+// Assign x per column
+const colX = {};
+let cx = 40;
+LAYER_ORDER.forEach(l => {
+  colX[l] = cx;
+  cx += NODE_W + COL_GAP;
+});
+
+// Assign y per node in column (evenly)
+const totalH = () => window.innerHeight;
+LAYER_ORDER.forEach(l => {
+  const ns = colNodes[l];
+  const totalColH = ns.length * NODE_H + (ns.length - 1) * ROW_GAP;
+  const startY = Math.max(30, (totalH() - totalColH) / 2);
+  ns.forEach((n, i) => {
+    n.x = colX[l];
+    n.y = startY + i * (NODE_H + ROW_GAP);
+  });
+});
+
+const TOTAL_W = cx - COL_GAP + 40;
 
 // ─── Legend ───────────────────────────────────────────────────────────────────
 const legend = document.getElementById('legend');
-DATA.layers.forEach(l => {
-  const item = document.createElement('div');
-  item.className = 'legend-item';
-  item.innerHTML = `<span class="legend-dot" style="background:${l.color}"></span>${l.label}`;
-  legend.appendChild(item);
+LAYERS.forEach(l => {
+  const d = document.createElement('div');
+  d.className = 'leg';
+  d.innerHTML = `<span class="leg-dot" style="background:${l.color}"></span>${l.label}`;
+  legend.appendChild(d);
 });
 
 // ─── Flows list ───────────────────────────────────────────────────────────────
 const flowsList = document.getElementById('flows-list');
-DATA.flows.forEach(f => {
-  const item = document.createElement('div');
-  item.className = 'flow-item';
-  item.id = 'flow-' + f.id;
-  item.innerHTML = `<span class="flow-dot" style="background:${f.color}"></span><div class="flow-text"><div class="flow-label">${f.label}</div><div class="flow-desc">${f.description}</div></div>`;
-  item.addEventListener('click', () => highlightFlow(f.id));
-  flowsList.appendChild(item);
+FLOWS.forEach(f => {
+  const row = document.createElement('div');
+  row.className = 'flow-row';
+  row.id = 'fr-' + f.id;
+  row.innerHTML = `<span class="flow-color" style="background:${f.color}"></span><div class="flow-info"><div class="flow-name">${f.label}</div><div class="flow-desc">${f.desc}</div></div>`;
+  row.addEventListener('click', () => highlightFlow(f.id));
+  flowsList.appendChild(row);
 });
 
-// ─── SVG setup ────────────────────────────────────────────────────────────────
+// ─── SVG ──────────────────────────────────────────────────────────────────────
 const svg = d3.select('#graph');
 const g = svg.append('g');
 
-const zoom = d3.zoom().scaleExtent([0.2, 4]).on('zoom', e => g.attr('transform', e.transform));
+const zoom = d3.zoom().scaleExtent([0.2, 3]).on('zoom', e => g.attr('transform', e.transform));
 svg.call(zoom);
-
-// Markers per layer
-const defs = svg.append('defs');
-DATA.layers.forEach(l => {
-  defs.append('marker')
-    .attr('id', 'arrow-' + l.id)
-    .attr('viewBox', '0 -4 8 8')
-    .attr('refX', 20).attr('refY', 0)
-    .attr('markerWidth', 6).attr('markerHeight', 6)
-    .attr('orient', 'auto')
-    .append('path')
-    .attr('d', 'M0,-4L8,0L0,4')
-    .attr('fill', l.color);
-});
-defs.append('marker')
-  .attr('id', 'arrow-default')
-  .attr('viewBox', '0 -4 8 8')
-  .attr('refX', 20).attr('refY', 0)
-  .attr('markerWidth', 6).attr('markerHeight', 6)
-  .attr('orient', 'auto')
-  .append('path')
-  .attr('d', 'M0,-4L8,0L0,4')
-  .attr('fill', '#444');
-
-// ─── Simulation ───────────────────────────────────────────────────────────────
-let W = document.getElementById('graph-wrap').clientWidth;
-let H = window.innerHeight;
-
-const simulation = d3.forceSimulation(allNodes)
-  .force('link', d3.forceLink(links).id(d => d.id).distance(90).strength(0.4))
-  .force('charge', d3.forceManyBody().strength(-280))
-  .force('collision', d3.forceCollide(36))
-  .force('x', d3.forceX(d => W * (layerX[d.layer] || 0.5)).strength(0.35))
-  .force('y', d3.forceY(H / 2).strength(0.05));
-
-// ─── Draw links ───────────────────────────────────────────────────────────────
-const linkG = g.append('g').attr('class', 'links');
-const linkEl = linkG.selectAll('line')
-  .data(links).enter().append('line')
-  .attr('class', 'link')
-  .attr('stroke', d => {
-    const src = nodeMap[typeof d.source === 'object' ? d.source.id : d.source];
-    return src ? (layerMap[src.layer]?.color || '#444') : '#444';
-  })
-  .attr('stroke-width', 1)
-  .attr('marker-end', d => {
-    const src = nodeMap[typeof d.source === 'object' ? d.source.id : d.source];
-    return src ? `url(#arrow-${src.layer})` : 'url(#arrow-default)';
-  });
-
-// Link labels
-const linkLabelEl = g.append('g').selectAll('text')
-  .data(links.filter(d => d.label)).enter().append('text')
-  .attr('class', 'link-label')
-  .text(d => d.label);
-
-// ─── Draw nodes ───────────────────────────────────────────────────────────────
-const nodeG = g.append('g').attr('class', 'nodes');
-const nodeEl = nodeG.selectAll('g')
-  .data(allNodes).enter().append('g')
-  .attr('class', 'node')
-  .call(d3.drag()
-    .on('start', (e, d) => { if (!e.active) simulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
-    .on('drag', (e, d) => { d.fx = e.x; d.fy = e.y; })
-    .on('end', (e, d) => { if (!e.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; })
-  )
-  .on('click', (e, d) => { e.stopPropagation(); showDetails(d); });
-
-nodeEl.append('circle')
-  .attr('r', 16)
-  .attr('fill', d => (layerMap[d.layer]?.color || '#555') + '22')
-  .attr('stroke', d => layerMap[d.layer]?.color || '#555');
-
-nodeEl.append('text')
-  .attr('dy', 28)
-  .text(d => d.label.length > 18 ? d.label.slice(0, 17) + '…' : d.label);
-
-// Layer icon hints inside circle
-nodeEl.append('text')
-  .attr('dy', 4)
-  .attr('font-size', '9px')
-  .attr('fill', d => layerMap[d.layer]?.color || '#aaa')
-  .attr('text-anchor', 'middle')
-  .text(d => ({ frontend: 'UI', backend: 'API', lib: 'LIB', database: 'DB', external: 'EXT' }[d.layer] || ''));
-
 svg.on('click', () => { clearHighlight(); hideDetails(); });
 
-// ─── Simulation tick ─────────────────────────────────────────────────────────
-simulation.on('tick', () => {
-  linkEl
-    .attr('x1', d => d.source.x).attr('y1', d => d.source.y)
-    .attr('x2', d => d.target.x).attr('y2', d => d.target.y);
-
-  linkLabelEl
-    .attr('x', d => (d.source.x + d.target.x) / 2)
-    .attr('y', d => (d.source.y + d.target.y) / 2 - 4);
-
-  nodeEl.attr('transform', d => `translate(${d.x},${d.y})`);
+// Arrow markers per layer
+const defs = svg.append('defs');
+LAYERS.forEach(l => {
+  defs.append('marker').attr('id','arr-'+l.id)
+    .attr('viewBox','0 -3 6 6').attr('refX',5).attr('refY',0)
+    .attr('markerWidth',5).attr('markerHeight',5).attr('orient','auto')
+    .append('path').attr('d','M0,-3L6,0L0,3').attr('class','arrowhead')
+    .attr('fill', l.color).attr('fill-opacity',0.5);
 });
 
-// Initial zoom to fit after layout settles
-simulation.on('end', () => {
-  const bounds = g.node().getBBox();
-  const pad = 40;
-  const scaleX = (W - pad * 2) / bounds.width;
-  const scaleY = (H - pad * 2) / bounds.height;
+// ─── Draw edges ───────────────────────────────────────────────────────────────
+function edgePath(s, t) {
+  const sx = s.x + NODE_W, sy = s.y + NODE_H / 2;
+  const tx = t.x,          ty = t.y + NODE_H / 2;
+  if (sx <= tx) {
+    // forward: S-curve
+    const mx = (sx + tx) / 2;
+    return `M${sx},${sy} C${mx},${sy} ${mx},${ty} ${tx},${ty}`;
+  } else {
+    // backward: loop below
+    const bot = Math.max(s.y, t.y) + NODE_H + 28;
+    return `M${sx},${sy} C${sx+40},${sy} ${sx+40},${bot} ${(sx+tx)/2},${bot} C${tx-40},${bot} ${tx-40},${ty} ${tx},${ty}`;
+  }
+}
+
+const edgeG = g.append('g');
+const edgeSel = edgeG.selectAll('path')
+  .data(EDGES).enter().append('path')
+  .attr('class','edge')
+  .attr('id', (d,i) => 'e'+i)
+  .attr('stroke', d => LAYER[NM[d.s]?.layer]?.color || '#444')
+  .attr('marker-end', d => `url(#arr-${NM[d.s]?.layer || 'frontend'})`)
+  .attr('d', d => {
+    const s = NM[d.s], t = NM[d.t];
+    return s && t ? edgePath(s, t) : '';
+  });
+
+// Edge labels
+const edgeLabelSel = edgeG.selectAll('text')
+  .data(EDGES.filter(d => d.l)).enter().append('text')
+  .attr('class','edge-label')
+  .text(d => d.l)
+  .attr('x', d => {
+    const s = NM[d.s], t = NM[d.t];
+    if (!s || !t) return 0;
+    return (s.x + NODE_W + t.x) / 2;
+  })
+  .attr('y', d => {
+    const s = NM[d.s], t = NM[d.t];
+    if (!s || !t) return 0;
+    return (s.y + t.y + NODE_H) / 2 - 4;
+  });
+
+// ─── Column headers ───────────────────────────────────────────────────────────
+const headerG = g.append('g');
+LAYERS.forEach(l => {
+  headerG.append('text')
+    .attr('x', colX[l.id] + NODE_W / 2).attr('y', 18)
+    .attr('text-anchor','middle').attr('font-size','10px')
+    .attr('font-weight','600').attr('fill', l.color)
+    .attr('opacity', 0.7).attr('letter-spacing','0.06em')
+    .attr('text-transform','uppercase')
+    .text(l.label.toUpperCase());
+});
+
+// ─── Draw nodes ───────────────────────────────────────────────────────────────
+const nodeG = g.append('g');
+const nodeSel = nodeG.selectAll('g')
+  .data(NODES).enter().append('g')
+  .attr('class','node-group')
+  .attr('transform', d => `translate(${d.x},${d.y})`)
+  .style('cursor','pointer')
+  .on('click', (e, d) => { e.stopPropagation(); showDetails(d); });
+
+nodeSel.append('rect')
+  .attr('class','node-rect')
+  .attr('width', NODE_W).attr('height', NODE_H)
+  .attr('rx', 8).attr('ry', 8)
+  .attr('fill', '#141414')
+  .attr('stroke', d => LAYER[d.layer]?.color || '#444');
+
+nodeSel.append('text')
+  .attr('class','node-label')
+  .attr('x', NODE_W / 2).attr('y', NODE_H / 2)
+  .text(d => d.label.length > 22 ? d.label.slice(0,21)+'…' : d.label);
+
+// ─── Initial zoom to fit ──────────────────────────────────────────────────────
+function fitGraph() {
+  const W = document.getElementById('graph-wrap').clientWidth;
+  const H = window.innerHeight;
+  const scaleX = (W - 60) / TOTAL_W;
+  const maxColH = Math.max(...LAYER_ORDER.map(l => {
+    const ns = colNodes[l];
+    return ns.length * (NODE_H + ROW_GAP) - ROW_GAP;
+  }));
+  const scaleY = (H - 80) / maxColH;
   const scale = Math.min(scaleX, scaleY, 1);
-  const tx = pad - bounds.x * scale + (W - bounds.width * scale) / 2;
-  const ty = pad - bounds.y * scale + (H - bounds.height * scale) / 2;
-  svg.transition().duration(600).call(zoom.transform, d3.zoomIdentity.translate(tx, ty).scale(scale));
-});
+  const tx = (W - TOTAL_W * scale) / 2;
+  const ty = 40;
+  svg.call(zoom.transform, d3.zoomIdentity.translate(tx, ty).scale(scale));
+}
+setTimeout(fitGraph, 50);
 
-// ─── Flow highlighting ────────────────────────────────────────────────────────
+// ─── Highlight flow ───────────────────────────────────────────────────────────
 let activeFlow = null;
 
-function highlightFlow(flowId) {
-  if (activeFlow === flowId) { clearHighlight(); return; }
-  activeFlow = flowId;
+function highlightFlow(fid) {
+  if (activeFlow === fid) { clearHighlight(); return; }
+  activeFlow = fid;
 
-  const flow = DATA.flows.find(f => f.id === flowId);
+  const flow = FLOWS.find(f => f.id === fid);
   if (!flow) return;
 
   const stepSet = new Set(flow.steps);
 
-  // Mark active flow item
-  document.querySelectorAll('.flow-item').forEach(el => el.classList.remove('active'));
-  document.getElementById('flow-' + flowId)?.classList.add('active');
+  document.querySelectorAll('.flow-row').forEach(r => r.classList.remove('active'));
+  document.getElementById('fr-' + fid)?.classList.add('active');
   document.getElementById('clear-btn').style.display = 'block';
 
-  // Highlight nodes
-  nodeEl.selectAll('circle')
-    .classed('dimmed', d => !stepSet.has(d.id))
-    .classed('highlighted', d => stepSet.has(d.id))
-    .style('stroke-width', d => stepSet.has(d.id) ? '2.5px' : '1.5px');
+  // Nodes
+  nodeSel.select('rect')
+    .attr('fill', d => stepSet.has(d.id) ? LAYER[d.layer]?.color + '22' : '#141414')
+    .attr('stroke-width', d => stepSet.has(d.id) ? 2 : 1.5)
+    .attr('opacity', d => stepSet.has(d.id) ? 1 : 0.12);
+  nodeSel.select('text')
+    .attr('fill', d => stepSet.has(d.id) ? '#f0f0f0' : '#555')
+    .attr('font-weight', d => stepSet.has(d.id) ? '600' : '400');
 
-  nodeEl.selectAll('text')
-    .style('opacity', d => stepSet.has(d.id) ? 1 : 0.15);
+  // Edges
+  edgeSel
+    .attr('stroke-opacity', d => (stepSet.has(d.s) && stepSet.has(d.t)) ? 0.85 : 0.04)
+    .attr('stroke-width', d => (stepSet.has(d.s) && stepSet.has(d.t)) ? 2 : 1.2);
+  edgeLabelSel
+    .attr('opacity', d => (stepSet.has(d.s) && stepSet.has(d.t)) ? 1 : 0.05);
 
-  // Highlight links whose both endpoints are in steps
-  linkEl
-    .classed('dimmed', d => !(stepSet.has(d.source.id) && stepSet.has(d.target.id)))
-    .classed('highlighted', d => stepSet.has(d.source.id) && stepSet.has(d.target.id))
-    .style('stroke-width', d => (stepSet.has(d.source.id) && stepSet.has(d.target.id)) ? '2px' : '1px');
-
-  linkLabelEl.style('opacity', d => (stepSet.has(d.source.id) && stepSet.has(d.target.id)) ? 1 : 0.05);
+  // Steps panel
+  const panel = document.getElementById('steps-panel');
+  panel.style.display = 'block';
+  document.getElementById('steps-flow-color').style.background = flow.color;
+  document.getElementById('steps-flow-name').textContent = flow.label;
+  const list = document.getElementById('steps-list');
+  list.innerHTML = '';
+  flow.steps.forEach((sid, i) => {
+    const node = NM[sid];
+    if (!node) return;
+    const row = document.createElement('div');
+    row.className = 'step-row';
+    row.style.borderLeftColor = flow.color + '40';
+    row.innerHTML = `<span class="step-num">${i+1}</span><div class="step-content"><div class="step-name">${node.label}</div>${node.file ? `<div class="step-file">${node.file}</div>` : ''}</div>`;
+    row.addEventListener('mouseenter', () => row.classList.add('current'));
+    row.addEventListener('mouseleave', () => row.classList.remove('current'));
+    list.appendChild(row);
+  });
 }
 
 function clearHighlight() {
   activeFlow = null;
-  document.querySelectorAll('.flow-item').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.flow-row').forEach(r => r.classList.remove('active'));
   document.getElementById('clear-btn').style.display = 'none';
+  document.getElementById('steps-panel').style.display = 'none';
 
-  nodeEl.selectAll('circle')
-    .classed('dimmed', false).classed('highlighted', false)
-    .style('stroke-width', '1.5px');
-  nodeEl.selectAll('text').style('opacity', 1);
-  linkEl.classed('dimmed', false).classed('highlighted', false).style('stroke-width', '1px');
-  linkLabelEl.style('opacity', 1);
+  nodeSel.select('rect')
+    .attr('fill','#141414').attr('stroke-width',1.5).attr('opacity',1);
+  nodeSel.select('text')
+    .attr('fill','#d4d4d4').attr('font-weight','400');
+  edgeSel.attr('stroke-opacity',0.25).attr('stroke-width',1.2);
+  edgeLabelSel.attr('opacity',1);
 }
 
 // ─── Node details ─────────────────────────────────────────────────────────────
 function showDetails(d) {
-  const panel = document.getElementById('details');
-  const layer = layerMap[d.layer];
-  panel.style.display = 'block';
-  document.getElementById('details-name').textContent = d.label;
-  const badge = document.getElementById('details-layer');
+  document.getElementById('details').style.display = 'block';
+  document.getElementById('det-name').textContent = d.label;
+  const layer = LAYER[d.layer];
+  const badge = document.getElementById('det-badge');
   badge.textContent = layer?.label || d.layer;
-  badge.style.background = (layer?.color || '#555') + '22';
+  badge.style.background = (layer?.color || '#555') + '18';
   badge.style.color = layer?.color || '#aaa';
-  document.getElementById('details-file').textContent = d.file || '';
-  document.getElementById('details-desc').textContent = d.description || '';
+  document.getElementById('det-file').textContent = d.file || '';
+  document.getElementById('det-desc').textContent = d.desc || '';
 }
-
 function hideDetails() {
   document.getElementById('details').style.display = 'none';
 }
 
-// ─── Resize ───────────────────────────────────────────────────────────────────
-window.addEventListener('resize', () => {
-  W = document.getElementById('graph-wrap').clientWidth;
-  H = window.innerHeight;
-  simulation.force('x', d3.forceX(d => W * (layerX[d.layer] || 0.5)).strength(0.35));
-  simulation.force('y', d3.forceY(H / 2).strength(0.05));
-  simulation.alpha(0.1).restart();
-});
+window.addEventListener('resize', fitGraph);
 </script>
 </body>
 </html>
