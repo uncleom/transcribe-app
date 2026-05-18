@@ -42,35 +42,76 @@ A full-stack PWA that transcribes audio and video files with automatic speaker d
 
 ## Architecture
 
-```
-Client (PWA / Telegram Bot)
-  │
-  ├── Web: /               Upload zone + instant credit check
-  ├── Web: /transcription/[id]   Polling page → text / timestamps / summary tabs
-  ├── Web: /history        Protected — server-rendered job list
-  ├── Web: /connect-telegram     Link Telegram account to web account
-  └── Telegram: @TranscriboAppBot  Forward audio → get transcript + inline buttons
+> **[→ Open interactive architecture graph](https://uncleom.github.io/transcribe-app/)** — clickable nodes, flow highlighting, step-by-step breakdown
 
-API Routes (Next.js)
-  ├── POST /api/transcribe            Validate → reserve credits → upload to Gladia → save job
-  ├── GET  /api/transcribe/[id]       Poll Gladia → finalise (normalise + summarise) → return result
-  ├── POST /api/transcribe/[id]/summary  Regenerate summary in chosen language (on-demand)
-  ├── GET  /api/credits               Return remaining seconds for current user/IP
-  ├── POST /api/telegram/webhook      Telegram update handler (transcription + callbacks)
-  └── POST /api/telegram/connect      Generate one-time link token for account linking
+```mermaid
+flowchart LR
+    subgraph FE["Frontend"]
+        direction TB
+        PWA["Browser / PWA"]
+        BOT["@TranscriboAppBot"]
+    end
 
-Shared Processing Pipeline (src/lib/transcription.ts)
-  ├── processFile()          Full pipeline for bot: Gladia upload → poll → normalise → summarise
-  ├── finaliseGladiaResult() Used by web polling route: normalise Gladia result → summarise
-  ├── mergeUtterances()      Merge consecutive same-speaker utterances (web + bot)
-  └── formatTranscriptText() Plain-text formatter (bot messages, clipboard)
+    subgraph API["Backend / API Routes"]
+        direction TB
+        TX["POST /api/transcribe"]
+        PL["GET /api/transcribe/[id]"]
+        WH["POST /api/telegram/webhook"]
+        CR["GET /api/credits"]
+    end
 
-Supabase
-  ├── profiles            User accounts + credits_seconds balance
-  ├── transcriptions      Job records with status + Gladia result URL + result JSON
-  ├── anonymous_usage     IP-based usage tracking with RLS
-  ├── telegram_accounts   Telegram user ID → Supabase user mapping
-  └── telegram_link_tokens  One-time tokens for web ↔ Telegram account linking
+    subgraph LIB["Shared Pipeline · src/lib/"]
+        direction TB
+        pipeline["transcription.ts\nprocessFile · finaliseGladiaResult"]
+        gladia["gladia.ts"]
+        groq["groq.ts"]
+        credits["credits.ts\natomic RPCs"]
+        apikeys["api-keys.ts\nowner vs public keys"]
+    end
+
+    subgraph DB["Supabase Postgres"]
+        direction TB
+        pr[("profiles\ncredits_seconds")]
+        tr[("transcriptions\nresult jsonb")]
+        au[("anonymous_usage\nby IP")]
+        ta[("telegram_accounts")]
+    end
+
+    subgraph EXT["External APIs"]
+        direction TB
+        GA["Gladia API v2\n100+ langs · diarization"]
+        GR["Groq API\nllama-3.3-70b"]
+        TG["Telegram Bot API"]
+    end
+
+    PWA -->|"upload file"| TX
+    PWA -->|"poll 5s"| PL
+    TG  -->|"webhook"| WH
+
+    TX  --> pipeline
+    PL  --> pipeline
+    WH  --> pipeline
+
+    TX  --> credits
+    TX  --> apikeys
+    PL  --> apikeys
+    WH  --> apikeys
+
+    pipeline --> gladia
+    pipeline --> groq
+    gladia   --> apikeys
+    groq     --> apikeys
+
+    gladia --> GA
+    groq   --> GR
+    WH     --> TG
+
+    credits --> pr
+    credits --> au
+    TX  --> tr
+    PL  --> tr
+    WH  --> tr
+    WH  --> ta
 ```
 
 **Key design decisions:**
