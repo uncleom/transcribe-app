@@ -265,6 +265,8 @@ async function handleFile(
 
 // ─── Callback handler ─────────────────────────────────────────────────────────
 
+const VALID_CALLBACK_LANGS = new Set(['en', 'es', 'pt', 'ru'])
+
 async function handleCallback(cbq: TelegramCallbackQuery) {
   const chatId = cbq.message?.chat.id
   if (!chatId || !cbq.data) return
@@ -273,12 +275,24 @@ async function handleCallback(cbq: TelegramCallbackQuery) {
 
   const [action, transcriptionId, lang] = cbq.data.split(':')
   if (!transcriptionId || transcriptionId === 'none') return
+  if (lang && !VALID_CALLBACK_LANGS.has(lang)) return
 
   const admin = createAdminClient()
+
+  // Verify the requesting Telegram user owns this transcription
+  const { data: account } = await admin
+    .from('telegram_accounts')
+    .select('supabase_user_id')
+    .eq('telegram_id', cbq.from.id)
+    .single()
+
+  if (!account) return
+
   const { data: transcription } = await admin
     .from('transcriptions')
     .select('result, user_id')
     .eq('id', transcriptionId)
+    .eq('user_id', account.supabase_user_id)
     .single()
 
   if (!transcription?.result) {

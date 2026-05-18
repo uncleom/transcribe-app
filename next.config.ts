@@ -31,6 +31,18 @@ const withPWA = require('next-pwa')({
   ],
 }) as (config: NextConfig) => NextConfig
 
-const nextConfig: NextConfig = {}
+const SECURITY_HEADERS = [
+  { key: 'X-Frame-Options', value: 'DENY' },
+  { key: 'X-Content-Type-Options', value: 'nosniff' },
+  { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+  // Allow microphone for browser recording; deny camera/geolocation
+  { key: 'Permissions-Policy', value: 'camera=(), microphone=(self), geolocation=()' },
+]
+
+const nextConfig: NextConfig = {
+  async headers() {
+    return [{ source: '/(.*)', headers: SECURITY_HEADERS }]
+  },
+}
 
 export default withPWA(nextConfig)
