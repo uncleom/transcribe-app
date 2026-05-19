@@ -10,10 +10,11 @@ export default async function HomePage() {
   let hasTelegram = false
   if (user) {
     const admin = createAdminClient()
-    const [, { data: tg }] = await Promise.all([
-      supabase.from('profiles').select('credits_seconds').eq('id', user.id).single(),
-      admin.from('telegram_accounts').select('telegram_id').eq('supabase_user_id', user.id).maybeSingle(),
-    ])
+    const { data: tg } = await admin
+      .from('telegram_accounts')
+      .select('telegram_id')
+      .eq('supabase_user_id', user.id)
+      .maybeSingle()
     hasTelegram = !!tg
   }
 
