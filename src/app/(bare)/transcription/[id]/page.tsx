@@ -306,20 +306,20 @@ export default function TranscriptionPage() {
           <TabsList className="mb-6 flex w-fit gap-1 rounded-lg bg-white/5 p-1 h-auto">
             <TabsTrigger
               value="clean"
-              className="rounded-md px-4 py-1.5 text-sm data-[state=active]:bg-[#e2ff00]/10 data-[state=active]:text-[#e2ff00] data-[state=inactive]:text-white/40"
+              className="rounded-md px-4 py-1.5 text-sm data-active:bg-[#e2ff00]/10 data-active:text-[#e2ff00]"
             >
               Text
             </TabsTrigger>
             <TabsTrigger
               value="detailed"
-              className="rounded-md px-4 py-1.5 text-sm data-[state=active]:bg-[#e2ff00]/10 data-[state=active]:text-[#e2ff00] data-[state=inactive]:text-white/40"
+              className="rounded-md px-4 py-1.5 text-sm data-active:bg-[#e2ff00]/10 data-active:text-[#e2ff00]"
             >
               Timestamps
             </TabsTrigger>
             {hasSummary && (
               <TabsTrigger
                 value="summary"
-                className="rounded-md px-4 py-1.5 text-sm data-[state=active]:bg-[#e2ff00]/10 data-[state=active]:text-[#e2ff00] data-[state=inactive]:text-white/40"
+                className="rounded-md px-4 py-1.5 text-sm data-active:bg-[#e2ff00]/10 data-active:text-[#e2ff00]"
               >
                 Summary
               </TabsTrigger>

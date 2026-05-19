@@ -30,14 +30,14 @@ export default function HomeContent() {
         <TabsList className="mx-auto mb-5 flex w-fit gap-1 rounded-lg bg-white/5 p-1 h-auto">
           <TabsTrigger
             value="upload"
-            className="flex items-center gap-2 rounded-md px-4 py-1.5 text-sm data-[state=active]:bg-[#e2ff00]/10 data-[state=active]:text-[#e2ff00] data-[state=inactive]:text-white/40"
+            className="flex items-center gap-2 rounded-md px-4 py-1.5 text-sm data-active:bg-[#e2ff00]/10 data-active:text-[#e2ff00]"
           >
             <Upload size={14} />
             Upload
           </TabsTrigger>
           <TabsTrigger
             value="record"
-            className="flex items-center gap-2 rounded-md px-4 py-1.5 text-sm data-[state=active]:bg-[#e2ff00]/10 data-[state=active]:text-[#e2ff00] data-[state=inactive]:text-white/40"
+            className="flex items-center gap-2 rounded-md px-4 py-1.5 text-sm data-active:bg-[#e2ff00]/10 data-active:text-[#e2ff00]"
           >
             <Mic size={14} />
             Record
