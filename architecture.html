@@ -401,12 +401,7 @@ function highlightFlow(fid) {
   if (!flow) return;
 
   const stepSet = new Set(flow.steps);
-
-  // Only edges between CONSECUTIVE steps (the actual path, not any two nodes in set)
-  const flowEdgeSet = new Set();
-  for (let i = 0; i < flow.steps.length - 1; i++) {
-    flowEdgeSet.add(flow.steps[i] + ':' + flow.steps[i + 1]);
-  }
+  const inFlow = d => stepSet.has(d.s) && stepSet.has(d.t);
 
   document.querySelectorAll('.flow-row').forEach(r => r.classList.remove('active'));
   document.getElementById('fr-' + fid)?.classList.add('active');
@@ -421,17 +416,17 @@ function highlightFlow(fid) {
     .attr('fill', d => stepSet.has(d.id) ? '#f0f0f0' : '#555')
     .attr('font-weight', d => stepSet.has(d.id) ? '600' : '400');
 
-  // Edges: highlight only the actual consecutive-step edges, colored with flow color
+  // Edges between any two flow nodes — colored with flow color, fully visible
   edgeSel
-    .attr('stroke', d => flowEdgeSet.has(d.s + ':' + d.t) ? flow.color : LAYER[NM[d.s]?.layer]?.color || '#444')
-    .attr('stroke-opacity', d => flowEdgeSet.has(d.s + ':' + d.t) ? 1 : 0.04)
-    .attr('stroke-width', d => flowEdgeSet.has(d.s + ':' + d.t) ? 2.5 : 1.2)
-    .attr('marker-end', d => flowEdgeSet.has(d.s + ':' + d.t)
+    .attr('stroke', d => inFlow(d) ? flow.color : LAYER[NM[d.s]?.layer]?.color || '#444')
+    .attr('stroke-opacity', d => inFlow(d) ? 1 : 0.04)
+    .attr('stroke-width', d => inFlow(d) ? 2.5 : 1.2)
+    .attr('marker-end', d => inFlow(d)
       ? `url(#arr-flow-${fid})`
       : `url(#arr-${NM[d.s]?.layer || 'frontend'})`);
   edgeLabelSel
-    .attr('fill', d => flowEdgeSet.has(d.s + ':' + d.t) ? flow.color : '#444')
-    .attr('opacity', d => flowEdgeSet.has(d.s + ':' + d.t) ? 1 : 0.05);
+    .attr('fill', d => inFlow(d) ? flow.color : '#444')
+    .attr('opacity', d => inFlow(d) ? 1 : 0.05);
 
   // Steps panel
   const panel = document.getElementById('steps-panel');
