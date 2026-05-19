@@ -43,13 +43,6 @@ export default function RecordZone({ onFileReady }: Props) {
   const streamRef = useRef<MediaStream | null>(null)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  useEffect(() => {
-    return () => {
-      stopTimer()
-      streamRef.current?.getTracks().forEach((t) => t.stop())
-    }
-  }, [])
-
   function startTimer() {
     setElapsed(0)
     timerRef.current = setInterval(() => setElapsed((s) => s + 1), 1000)
@@ -61,6 +54,13 @@ export default function RecordZone({ onFileReady }: Props) {
       timerRef.current = null
     }
   }
+
+  useEffect(() => {
+    return () => {
+      stopTimer()
+      streamRef.current?.getTracks().forEach((t) => t.stop())
+    }
+  }, [])
 
   async function startRecording() {
     setErrorMsg(null)

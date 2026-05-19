@@ -36,15 +36,11 @@ function detectPlatform(): Platform {
 }
 
 export default function InstallBanner() {
-  const [platform, setPlatform] = useState<Platform>('none')
+  const [platform, setPlatform] = useState<Platform>(detectPlatform)
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null)
 
   useEffect(() => {
-    const ios = detectPlatform()
-    if (ios === 'ios') {
-      setPlatform('ios')
-      return
-    }
+    if (platform === 'ios') return
 
     // Android: wait for beforeinstallprompt
     const handler = (e: Event) => {
@@ -56,7 +52,7 @@ export default function InstallBanner() {
 
     window.addEventListener('beforeinstallprompt', handler)
     return () => window.removeEventListener('beforeinstallprompt', handler)
-  }, [])
+  }, [platform])
 
   const handleInstall = useCallback(async () => {
     if (!deferredPrompt) return
@@ -117,7 +113,7 @@ export default function InstallBanner() {
               Share
             </span>
             then
-            <span className="font-medium text-white">"Add to Home Screen"</span>
+            <span className="font-medium text-white">&ldquo;Add to Home Screen&rdquo;</span>
           </p>
         </div>
       )}
