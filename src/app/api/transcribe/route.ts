@@ -130,6 +130,7 @@ export async function POST(req: NextRequest) {
     resultUrl = await startTranscription({
       audio_url: gladiaAudioUrl,
       diarization: true,
+      language_config: { code_switching: true },
     }, gladiaKey)
   } catch (err) {
     console.error('Gladia error:', err)
