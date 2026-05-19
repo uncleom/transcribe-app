@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import Image from 'next/image'
 import { createServerClient, createAdminClient } from '@/lib/supabase/server'
 import HomeContent from '@/components/HomeContent'
 import InstallBanner from '@/components/InstallBanner'
@@ -22,6 +23,14 @@ export default async function HomePage() {
     <main className="flex flex-1 flex-col items-center justify-center px-4 py-16">
       <div className="w-full max-w-lg">
         <div className="mb-10 text-center">
+          <Image
+            src="/icons/icon-192.png"
+            alt="Transcribo"
+            width={72}
+            height={72}
+            className="mx-auto mb-4 rounded-2xl"
+            priority
+          />
           <h1 className="text-3xl font-bold tracking-tight text-white">Transcribo</h1>
           <p className="mt-2 text-white/45">
             Upload audio or video — get a transcript with speaker labels
