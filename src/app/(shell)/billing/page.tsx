@@ -1,7 +1,7 @@
-import { redirect } from 'next/navigation'
 import { createServerClient, createAdminClient } from '@/lib/supabase/server'
 import TelegramLinkButton from '@/components/TelegramLinkButton'
 import LogoutButton from '@/components/LogoutButton'
+import SignInButton from '@/components/SignInButton'
 
 function formatCredits(secs: number): string {
   if (secs <= 0) return '0 min'
@@ -17,7 +17,19 @@ export default async function BillingPage() {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  if (!user) redirect('/login')
+  if (!user) {
+    return (
+      <main className="flex flex-1 flex-col items-center justify-center px-4 py-16">
+        <div className="w-full max-w-sm space-y-6 text-center">
+          <div>
+            <h1 className="text-xl font-semibold text-white">Account</h1>
+            <p className="mt-2 text-sm text-white/40">Sign in to manage your credits and history</p>
+          </div>
+          <SignInButton />
+        </div>
+      </main>
+    )
+  }
 
   const { data: profile } = await supabase
     .from('profiles')

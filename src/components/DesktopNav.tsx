@@ -30,8 +30,8 @@ export default function DesktopNav() {
               className={cn(
                 'flex flex-col items-center gap-1 rounded-lg px-1 py-2 w-10 transition-colors',
                 isActive
-                  ? 'bg-[#e2ff00]/10 text-[#e2ff00]'
-                  : 'text-white/30 hover:text-white/60'
+                  ? 'bg-[#e2ff00]/15 text-[#e2ff00] ring-1 ring-[#e2ff00]/20'
+                  : 'text-white/30 hover:text-white/50'
               )}
             >
               <Icon size={18} strokeWidth={1.75} />
