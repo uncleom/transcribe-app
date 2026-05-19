@@ -288,6 +288,14 @@ LAYERS.forEach(l => {
     .append('path').attr('d','M0,-3L6,0L0,3').attr('class','arrowhead')
     .attr('fill', l.color).attr('fill-opacity',0.5);
 });
+// Arrow markers per flow (for highlighted edges)
+FLOWS.forEach(f => {
+  defs.append('marker').attr('id','arr-flow-'+f.id)
+    .attr('viewBox','0 -3 6 6').attr('refX',5).attr('refY',0)
+    .attr('markerWidth',5).attr('markerHeight',5).attr('orient','auto')
+    .append('path').attr('d','M0,-3L6,0L0,3')
+    .attr('fill', f.color);
+});
 
 // ─── Draw edges ───────────────────────────────────────────────────────────────
 function edgePath(s, t) {
@@ -394,6 +402,12 @@ function highlightFlow(fid) {
 
   const stepSet = new Set(flow.steps);
 
+  // Only edges between CONSECUTIVE steps (the actual path, not any two nodes in set)
+  const flowEdgeSet = new Set();
+  for (let i = 0; i < flow.steps.length - 1; i++) {
+    flowEdgeSet.add(flow.steps[i] + ':' + flow.steps[i + 1]);
+  }
+
   document.querySelectorAll('.flow-row').forEach(r => r.classList.remove('active'));
   document.getElementById('fr-' + fid)?.classList.add('active');
   document.getElementById('clear-btn').style.display = 'block';
@@ -407,12 +421,17 @@ function highlightFlow(fid) {
     .attr('fill', d => stepSet.has(d.id) ? '#f0f0f0' : '#555')
     .attr('font-weight', d => stepSet.has(d.id) ? '600' : '400');
 
-  // Edges
+  // Edges: highlight only the actual consecutive-step edges, colored with flow color
   edgeSel
-    .attr('stroke-opacity', d => (stepSet.has(d.s) && stepSet.has(d.t)) ? 0.85 : 0.04)
-    .attr('stroke-width', d => (stepSet.has(d.s) && stepSet.has(d.t)) ? 2 : 1.2);
+    .attr('stroke', d => flowEdgeSet.has(d.s + ':' + d.t) ? flow.color : LAYER[NM[d.s]?.layer]?.color || '#444')
+    .attr('stroke-opacity', d => flowEdgeSet.has(d.s + ':' + d.t) ? 1 : 0.04)
+    .attr('stroke-width', d => flowEdgeSet.has(d.s + ':' + d.t) ? 2.5 : 1.2)
+    .attr('marker-end', d => flowEdgeSet.has(d.s + ':' + d.t)
+      ? `url(#arr-flow-${fid})`
+      : `url(#arr-${NM[d.s]?.layer || 'frontend'})`);
   edgeLabelSel
-    .attr('opacity', d => (stepSet.has(d.s) && stepSet.has(d.t)) ? 1 : 0.05);
+    .attr('fill', d => flowEdgeSet.has(d.s + ':' + d.t) ? flow.color : '#444')
+    .attr('opacity', d => flowEdgeSet.has(d.s + ':' + d.t) ? 1 : 0.05);
 
   // Steps panel
   const panel = document.getElementById('steps-panel');
@@ -444,8 +463,11 @@ function clearHighlight() {
     .attr('fill','#141414').attr('stroke-width',1.5).attr('opacity',1);
   nodeSel.select('text')
     .attr('fill','#d4d4d4').attr('font-weight','400');
-  edgeSel.attr('stroke-opacity',0.25).attr('stroke-width',1.2);
-  edgeLabelSel.attr('opacity',1);
+  edgeSel
+    .attr('stroke', d => LAYER[NM[d.s]?.layer]?.color || '#444')
+    .attr('stroke-opacity',0.25).attr('stroke-width',1.2)
+    .attr('marker-end', d => `url(#arr-${NM[d.s]?.layer || 'frontend'})`);
+  edgeLabelSel.attr('fill','#444').attr('opacity',1);
 }
 
 // ─── Node details ─────────────────────────────────────────────────────────────
