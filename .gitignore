@@ -59,7 +59,7 @@ SPECIFICATION.md
 # mempalace / internal AI tooling
 mempalace.yaml
 entities.json
-docs/superpowers/
+.superpowers/
 
 # PWA generated service worker (next-pwa build output — not source)
 public/sw.js
