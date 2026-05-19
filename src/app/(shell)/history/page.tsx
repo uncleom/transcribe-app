@@ -1,7 +1,6 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createServerClient } from '@/lib/supabase/server'
-import LogoutButton from '@/components/LogoutButton'
 import type { TranscriptionStatus } from '@/types'
 
 function formatDuration(secs: number | null): string | null {
@@ -39,18 +38,7 @@ export default async function HistoryPage() {
     .order('created_at', { ascending: false })
 
   return (
-    <>
-      <header className="flex items-center justify-between border-b border-white/[0.06] px-4 py-4">
-        <Link href="/" className="text-sm font-semibold text-white hover:text-white/80 transition">
-          Transcribe
-        </Link>
-        <div className="flex items-center gap-4">
-          <span className="text-sm text-white/40">History</span>
-          <LogoutButton />
-        </div>
-      </header>
-
-      <main className="flex-1 px-4 py-10">
+    <main className="flex-1 px-4 py-10">
         <div className="mx-auto max-w-2xl">
           <h1 className="mb-6 text-xl font-semibold text-white">History</h1>
 
@@ -113,6 +101,5 @@ export default async function HistoryPage() {
           )}
         </div>
       </main>
-    </>
   )
 }
