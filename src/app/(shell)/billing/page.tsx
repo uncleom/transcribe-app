@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createServerClient, createAdminClient } from '@/lib/supabase/server'
 import TelegramLinkButton from '@/components/TelegramLinkButton'
+import LogoutButton from '@/components/LogoutButton'
 
 function formatCredits(secs: number): string {
   if (secs <= 0) return '0 min'
@@ -67,7 +68,7 @@ export default async function BillingPage() {
         </div>
 
         {/* Telegram */}
-        <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-6">
+        <div className="mb-6 rounded-2xl border border-white/[0.08] bg-white/[0.02] p-6">
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="text-sm font-semibold text-white">Telegram Bot</p>
@@ -86,6 +87,10 @@ export default async function BillingPage() {
               initialUsername={telegramAccount?.telegram_username ?? null}
             />
           </div>
+        </div>
+        {/* Sign out */}
+        <div className="mt-2 flex justify-center">
+          <LogoutButton />
         </div>
       </div>
     </main>
