@@ -102,6 +102,7 @@ export async function transcribeFile(
   const request: GladiaTranscriptionRequest = {
     audio_url: audioUrl,
     diarization: true,
+    language_config: { code_switching: true },
   }
 
   const resultUrl = await startTranscription(request, apiKey)
@@ -127,7 +128,7 @@ export function normaliseResult(raw: GladiaPollingResult): TranscriptionResult {
     utterances,
     full_transcript: transcription.full_transcript,
     summary: null,
-    language: transcription.languages[0] ?? 'unknown',
+    language: transcription.languages.join('+') || 'unknown',
     duration: metadata.audio_duration,
   }
 }

@@ -36,7 +36,7 @@ export async function processFile(file: File | Blob, fileName: string, userId?: 
 
 async function addSummary(result: TranscriptionResult, groqKey: string): Promise<void> {
   try {
-    result.summary = await summariseTranscript(result.full_transcript, result.language, groqKey)
+    result.summary = await summariseTranscript(result.full_transcript, result.language.split('+')[0], groqKey)
   } catch (err) {
     console.error('Summary generation failed (non-fatal):', err)
   }
