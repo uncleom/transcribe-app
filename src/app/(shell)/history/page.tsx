@@ -1,7 +1,7 @@
 import Link from 'next/link'
-import { redirect } from 'next/navigation'
 import { createServerClient } from '@/lib/supabase/server'
 import { Badge } from '@/components/ui/badge'
+import SignInButton from '@/components/SignInButton'
 import type { TranscriptionStatus } from '@/types'
 
 function formatDuration(secs: number | null): string | null {
@@ -30,7 +30,20 @@ export default async function HistoryPage() {
   const supabase = await createServerClient()
 
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
+
+  if (!user) {
+    return (
+      <main className="flex flex-1 flex-col items-center justify-center px-4 py-16">
+        <div className="w-full max-w-sm space-y-6 text-center">
+          <div>
+            <h1 className="text-xl font-semibold text-white">History</h1>
+            <p className="mt-2 text-sm text-white/40">Sign in to see your transcription history</p>
+          </div>
+          <SignInButton />
+        </div>
+      </main>
+    )
+  }
 
   const { data: transcriptions } = await supabase
     .from('transcriptions')
