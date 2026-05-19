@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createServerClient } from '@/lib/supabase/server'
-import LogoutButton from '@/components/LogoutButton'
+import { Badge } from '@/components/ui/badge'
 import type { TranscriptionStatus } from '@/types'
 
 function formatDuration(secs: number | null): string | null {
@@ -19,11 +19,11 @@ function formatDate(iso: string): string {
   })
 }
 
-const STATUS: Record<TranscriptionStatus, { label: string; className: string }> = {
-  pending:    { label: 'Pending',    className: 'bg-white/10 text-white/40' },
-  processing: { label: 'Processing', className: 'bg-yellow-400/15 text-yellow-400' },
-  done:       { label: 'Done',       className: 'bg-green-400/15 text-green-400' },
-  error:      { label: 'Error',      className: 'bg-red-400/15 text-red-400' },
+const STATUS: Record<TranscriptionStatus, { label: string; cls: string }> = {
+  pending:    { label: 'Pending',    cls: 'bg-white/10 text-white/40 border-transparent hover:bg-white/10' },
+  processing: { label: 'Processing', cls: 'bg-yellow-400/15 text-yellow-400 border-transparent hover:bg-yellow-400/15' },
+  done:       { label: 'Done',       cls: 'bg-green-400/15 text-green-400 border-transparent hover:bg-green-400/15' },
+  error:      { label: 'Error',      cls: 'bg-red-400/15 text-red-400 border-transparent hover:bg-red-400/15' },
 }
 
 export default async function HistoryPage() {
@@ -39,18 +39,7 @@ export default async function HistoryPage() {
     .order('created_at', { ascending: false })
 
   return (
-    <>
-      <header className="flex items-center justify-between border-b border-white/[0.06] px-4 py-4">
-        <Link href="/" className="text-sm font-semibold text-white hover:text-white/80 transition">
-          Transcribe
-        </Link>
-        <div className="flex items-center gap-4">
-          <span className="text-sm text-white/40">History</span>
-          <LogoutButton />
-        </div>
-      </header>
-
-      <main className="flex-1 px-4 py-10">
+    <main className="flex-1 px-4 py-10">
         <div className="mx-auto max-w-2xl">
           <h1 className="mb-6 text-xl font-semibold text-white">History</h1>
 
@@ -94,16 +83,16 @@ export default async function HistoryPage() {
 
                       <div className="flex flex-shrink-0 items-center gap-2">
                         {t.language && (
-                          <span className="rounded-full bg-white/8 px-2.5 py-0.5 text-xs font-medium uppercase tracking-wide text-white/50">
+                          <Badge className="bg-white/8 text-white/50 border-transparent uppercase tracking-wide hover:bg-white/8">
                             {t.language}
-                          </span>
+                          </Badge>
                         )}
                         {duration && (
                           <span className="text-xs text-white/35">{duration}</span>
                         )}
-                        <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${badge.className}`}>
+                        <Badge className={badge.cls}>
                           {badge.label}
-                        </span>
+                        </Badge>
                       </div>
                     </Link>
                   </li>
@@ -113,6 +102,5 @@ export default async function HistoryPage() {
           )}
         </div>
       </main>
-    </>
   )
 }

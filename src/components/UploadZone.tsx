@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect, DragEvent, ChangeEvent } from 'react'
+import { Button } from '@/components/ui/button'
 
 interface Props {
   onUploadComplete: (id: string) => void
@@ -243,22 +244,23 @@ export default function UploadZone({ onUploadComplete, initialFile }: Props) {
 
       {/* Transcribe button */}
       {state === 'selected' && (
-        <button
+        <Button
           onClick={startUpload}
-          className="mt-4 w-full rounded-xl bg-[#e2ff00] py-3.5 text-sm font-semibold text-black transition-opacity hover:opacity-90 active:opacity-80"
+          className="mt-4 w-full rounded-xl bg-[#e2ff00] py-3.5 text-sm font-semibold text-black hover:opacity-90 hover:bg-[#e2ff00] active:opacity-80"
         >
           Transcribe
-        </button>
+        </Button>
       )}
 
       {/* Retry button */}
       {state === 'error' && (
-        <button
+        <Button
+          variant="outline"
           onClick={() => { setState('selected'); setErrorMsg(null) }}
-          className="mt-3 w-full rounded-xl border border-white/15 py-3 text-sm text-white/60 transition hover:border-white/25 hover:text-white/80"
+          className="mt-3 w-full rounded-xl border-white/15 py-3 text-white/60 hover:border-white/25 hover:text-white/80 hover:bg-transparent"
         >
           Try again
-        </button>
+        </Button>
       )}
     </div>
   )
