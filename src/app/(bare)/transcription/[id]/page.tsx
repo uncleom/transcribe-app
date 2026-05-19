@@ -4,6 +4,10 @@ import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import type { TranscriptionResult } from '@/types'
 import { mergeUtterances } from '@/lib/transcription'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { toast } from 'sonner'
 
 interface TranscriptionData {
   id: string
@@ -132,7 +136,6 @@ export default function TranscriptionPage() {
 
   const [data, setData] = useState<TranscriptionData | null>(null)
   const [fetchError, setFetchError] = useState<string | null>(null)
-  const [copied, setCopied] = useState(false)
   const [view, setView] = useState<ViewTab>('clean')
   const [summaryLang, setSummaryLang] = useState<string | null>(null)
   const [regeneratedSummary, setRegeneratedSummary] = useState<string | null>(null)
@@ -209,8 +212,7 @@ export default function TranscriptionPage() {
     }
     if (!text) return
     await navigator.clipboard.writeText(text)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2_000)
+    toast.success('Copied to clipboard')
   }
 
   if (fetchError) {
@@ -279,130 +281,132 @@ export default function TranscriptionPage() {
             <h1 className="truncate text-lg font-semibold text-white">{data.file_name}</h1>
             <div className="mt-2 flex flex-wrap gap-2">
               {result.language && (
-                <span className="rounded-full bg-white/8 px-3 py-1 text-xs font-medium uppercase tracking-wider text-white/60">
+                <Badge className="bg-white/8 text-white/60 border-transparent uppercase tracking-wider hover:bg-white/8">
                   {result.language}
-                </span>
+                </Badge>
               )}
               {result.duration > 0 && (
-                <span className="rounded-full bg-white/8 px-3 py-1 text-xs font-medium text-white/60">
+                <Badge className="bg-white/8 text-white/60 border-transparent hover:bg-white/8">
                   {formatTime(result.duration)}
-                </span>
+                </Badge>
               )}
             </div>
           </div>
 
-          <button
+          <Button
+            variant="outline"
             onClick={copyAll}
-            className={`flex-shrink-0 rounded-lg border px-4 py-2 text-sm transition ${
-              copied
-                ? 'border-[#e2ff00]/30 text-[#e2ff00]'
-                : 'border-white/15 text-white/60 hover:border-white/30 hover:text-white'
-            }`}
+            className="flex-shrink-0 border-white/15 text-white/60 hover:border-white/30 hover:text-white hover:bg-transparent"
           >
-            {copied ? '✓ Copied' : 'Copy all'}
-          </button>
+            Copy all
+          </Button>
         </div>
 
-        {/* View tabs */}
-        <div className="mb-6 flex gap-1 rounded-lg bg-white/5 p-1 w-fit">
-          {(['clean', 'detailed', ...(hasSummary ? ['summary'] : [])] as ViewTab[]).map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setView(tab)}
-              className={`rounded-md px-4 py-1.5 text-sm transition ${
-                view === tab
-                  ? 'bg-[#e2ff00]/10 text-[#e2ff00] font-medium'
-                  : 'text-white/40 hover:text-white/70'
-              }`}
+        <Tabs value={view} onValueChange={(v) => setView(v as ViewTab)}>
+          <TabsList className="mb-6 flex w-fit gap-1 rounded-lg bg-white/5 p-1 h-auto">
+            <TabsTrigger
+              value="clean"
+              className="rounded-md px-4 py-1.5 text-sm data-[state=active]:bg-[#e2ff00]/10 data-[state=active]:text-[#e2ff00] data-[state=inactive]:text-white/40"
             >
-              {tab === 'clean' ? 'Text' : tab === 'detailed' ? 'Timestamps' : 'Summary'}
-            </button>
-          ))}
-        </div>
+              Text
+            </TabsTrigger>
+            <TabsTrigger
+              value="detailed"
+              className="rounded-md px-4 py-1.5 text-sm data-[state=active]:bg-[#e2ff00]/10 data-[state=active]:text-[#e2ff00] data-[state=inactive]:text-white/40"
+            >
+              Timestamps
+            </TabsTrigger>
+            {hasSummary && (
+              <TabsTrigger
+                value="summary"
+                className="rounded-md px-4 py-1.5 text-sm data-[state=active]:bg-[#e2ff00]/10 data-[state=active]:text-[#e2ff00] data-[state=inactive]:text-white/40"
+              >
+                Summary
+              </TabsTrigger>
+            )}
+          </TabsList>
 
-        {/* Clean view */}
-        {view === 'clean' && (
-          <div className="flex flex-col gap-2">
-            {merged.map((u, i) => {
-              const color = SPEAKER_COLORS[u.speaker % SPEAKER_COLORS.length]
-              return (
-                <div key={i} className="flex gap-3 rounded-lg px-3 py-2.5 -mx-3 transition hover:bg-white/[0.025]">
-                  <div className="flex-shrink-0 pt-0.5">
-                    <span
-                      className="inline-block rounded-full px-2.5 py-0.5 text-[11px] font-bold text-black"
-                      style={{ backgroundColor: color }}
+          <TabsContent value="clean">
+            <div className="flex flex-col gap-2">
+              {merged.map((u, i) => {
+                const color = SPEAKER_COLORS[u.speaker % SPEAKER_COLORS.length]
+                return (
+                  <div key={i} className="flex gap-3 rounded-lg px-3 py-2.5 -mx-3 transition hover:bg-white/[0.025]">
+                    <div className="flex-shrink-0 pt-0.5">
+                      <span
+                        className="inline-block rounded-full px-2.5 py-0.5 text-[11px] font-bold text-black"
+                        style={{ backgroundColor: color }}
+                      >
+                        S{u.speaker}
+                      </span>
+                    </div>
+                    <p className="min-w-0 flex-1 text-sm leading-relaxed text-white/85">{u.text}</p>
+                  </div>
+                )
+              })}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="detailed">
+            <div className="flex flex-col gap-2">
+              {result.utterances.map((u, i) => {
+                const color = SPEAKER_COLORS[u.speaker % SPEAKER_COLORS.length]
+                return (
+                  <div key={i} className="flex gap-3 rounded-lg px-3 py-2.5 -mx-3 transition hover:bg-white/[0.025]">
+                    <div className="flex-shrink-0 pt-0.5">
+                      <span
+                        className="inline-block rounded-full px-2.5 py-0.5 text-[11px] font-bold text-black"
+                        style={{ backgroundColor: color }}
+                      >
+                        S{u.speaker}
+                      </span>
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm leading-relaxed text-white/85">{u.text}</p>
+                      <p className="mt-1 text-xs text-white/25">
+                        {formatTime(u.start)}–{formatTime(u.end)}
+                      </p>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </TabsContent>
+
+          {hasSummary && (
+            <TabsContent value="summary">
+              <div className="mb-4 flex items-center gap-3">
+                <span className="text-xs text-white/35">Language:</span>
+                <div className="flex gap-1">
+                  {SUMMARY_LANGS.map(({ code, label }) => (
+                    <button
+                      key={code}
+                      onClick={() => regenerateSummary(code)}
+                      disabled={summaryLoading}
+                      className={[
+                        'rounded-md px-2.5 py-1 text-xs font-medium transition',
+                        summaryLang === code
+                          ? 'bg-[#e2ff00]/15 text-[#e2ff00]'
+                          : 'text-white/40 hover:bg-white/8 hover:text-white/70',
+                        summaryLoading ? 'cursor-not-allowed' : '',
+                      ].join(' ')}
                     >
-                      S{u.speaker}
-                    </span>
-                  </div>
-                  <p className="min-w-0 flex-1 text-sm leading-relaxed text-white/85">{u.text}</p>
+                      {label}
+                    </button>
+                  ))}
                 </div>
-              )
-            })}
-          </div>
-        )}
-
-        {/* Detailed view */}
-        {view === 'detailed' && (
-          <div className="flex flex-col gap-2">
-            {result.utterances.map((u, i) => {
-              const color = SPEAKER_COLORS[u.speaker % SPEAKER_COLORS.length]
-              return (
-                <div key={i} className="flex gap-3 rounded-lg px-3 py-2.5 -mx-3 transition hover:bg-white/[0.025]">
-                  <div className="flex-shrink-0 pt-0.5">
-                    <span
-                      className="inline-block rounded-full px-2.5 py-0.5 text-[11px] font-bold text-black"
-                      style={{ backgroundColor: color }}
-                    >
-                      S{u.speaker}
-                    </span>
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm leading-relaxed text-white/85">{u.text}</p>
-                    <p className="mt-1 text-xs text-white/25">
-                      {formatTime(u.start)}–{formatTime(u.end)}
-                    </p>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        )}
-
-        {/* Summary view */}
-        {view === 'summary' && hasSummary && (
-          <div>
-            <div className="mb-4 flex items-center gap-3">
-              <span className="text-xs text-white/35">Language:</span>
-              <div className="flex gap-1">
-                {SUMMARY_LANGS.map(({ code, label }) => (
-                  <button
-                    key={code}
-                    onClick={() => regenerateSummary(code)}
-                    disabled={summaryLoading}
-                    className={[
-                      'rounded-md px-2.5 py-1 text-xs font-medium transition',
-                      summaryLang === code
-                        ? 'bg-[#e2ff00]/15 text-[#e2ff00]'
-                        : 'text-white/40 hover:bg-white/8 hover:text-white/70',
-                      summaryLoading ? 'cursor-not-allowed' : '',
-                    ].join(' ')}
-                  >
-                    {label}
-                  </button>
-                ))}
+                {summaryLoading && (
+                  <div className="h-3 w-3 animate-spin rounded-full border border-white/20 border-t-white/60" />
+                )}
               </div>
-              {summaryLoading && (
-                <div className="h-3 w-3 animate-spin rounded-full border border-white/20 border-t-white/60" />
-              )}
-            </div>
-            <div className="rounded-xl border border-white/8 bg-white/[0.03] p-6">
-              {summaryLoading
-                ? <p className="text-sm text-white/30 animate-pulse">Generating summary…</p>
-                : renderMarkdown(displayedSummary!)}
-            </div>
-          </div>
-        )}
+              <div className="rounded-xl border border-white/8 bg-white/[0.03] p-6">
+                {summaryLoading
+                  ? <p className="text-sm text-white/30 animate-pulse">Generating summary…</p>
+                  : renderMarkdown(displayedSummary!)}
+              </div>
+            </TabsContent>
+          )}
+        </Tabs>
 
         {/* Back link — bottom */}
         <div className="mt-14 text-center">
