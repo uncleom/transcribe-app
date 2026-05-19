@@ -7,15 +7,13 @@ export default async function HomePage() {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  let isUnlimited = false
   let hasTelegram = false
   if (user) {
     const admin = createAdminClient()
-    const [{ data: profile }, { data: tg }] = await Promise.all([
-      supabase.from('profiles').select('credits_seconds, is_unlimited').eq('id', user.id).single(),
+    const [, { data: tg }] = await Promise.all([
+      supabase.from('profiles').select('credits_seconds').eq('id', user.id).single(),
       admin.from('telegram_accounts').select('telegram_id').eq('supabase_user_id', user.id).maybeSingle(),
     ])
-    isUnlimited = profile?.is_unlimited ?? false
     hasTelegram = !!tg
   }
 
