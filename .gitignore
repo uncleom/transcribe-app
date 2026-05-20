@@ -61,6 +61,11 @@ mempalace.yaml
 entities.json
 .superpowers/
 
+# Private docs — не для публики
+docs/superpowers/
+docs/portfolio-context.md
+docs/CLAUDE_backup_*.md
+
 # PWA generated service worker (next-pwa build output — not source)
 public/sw.js
 public/workbox-*.js

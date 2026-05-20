@@ -29,7 +29,7 @@ cp .env.example .env.local
 | `SUPABASE_SERVICE_ROLE_KEY` | там же → service_role key (**секрет, никогда в git**) |
 | `GLADIA_API_KEY` | https://app.gladia.io → API keys (есть free tier 10h/мес) |
 | `GROQ_API_KEY` | https://console.groq.com → API keys (free tier есть) |
-| `NEXT_PUBLIC_APP_URL` | локально: `http://localhost:3000`, prod: `https://transcribo.app` |
+| `NEXT_PUBLIC_APP_URL` | локально: `http://localhost:3000`, prod: ваш домен |
 
 ## 3. Supabase
 

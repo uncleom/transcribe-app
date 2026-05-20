@@ -1,6 +1,6 @@
 # ARCHITECTURE.md
 
-Техническая архитектура transcribe-app (transcribo.app).
+Техническая архитектура transcribe-app.
 
 ---
 
