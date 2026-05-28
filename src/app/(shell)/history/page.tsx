@@ -97,7 +97,7 @@ export default async function HistoryPage() {
                       <div className="flex flex-shrink-0 items-center gap-2">
                         {t.language && (
                           <Badge className="bg-white/8 text-white/50 border-transparent uppercase tracking-wide hover:bg-white/8">
-                            {t.language}
+                            {t.language.split(/[+\-]/)[0]}
                           </Badge>
                         )}
                         {duration && (
