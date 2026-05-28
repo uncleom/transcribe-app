@@ -245,7 +245,7 @@ async function handleFile(
 
   // Build inline keyboard
   const targetLang = getTargetLang(langCode)
-  const transcriptLang = result.language?.split('-')[0]?.toLowerCase() ?? 'unknown'
+  const transcriptLang = result.language?.split(/[+\-]/)[0]?.toLowerCase() ?? 'unknown'
   const showTranslate = transcriptLang !== targetLang && targetLang in { en: 1, es: 1, pt: 1, ru: 1 }
 
   const keyboard = {
@@ -311,7 +311,7 @@ async function handleCallback(cbq: TelegramCallbackQuery) {
 
       const userLang = cbq.from.language_code ?? 'en'
       const targetLang = getTargetLang(userLang)
-      const summaryLang = result.language?.split('-')[0]?.toLowerCase() ?? 'unknown'
+      const summaryLang = result.language?.split(/[+\-]/)[0]?.toLowerCase() ?? 'unknown'
       const showTranslate = summaryLang !== targetLang && targetLang in { en: 1, es: 1, pt: 1, ru: 1 }
 
       const keyboard = showTranslate ? {
