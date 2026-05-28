@@ -204,11 +204,6 @@ export async function sendTextOrFile(
     await sendMessage(chatId, text, { reply_markup: replyMarkup })
   } else {
     const bytes = new TextEncoder().encode(text)
-    await sendDocument(chatId, bytes, filename)
-    if (replyMarkup) {
-      await sendMessage(chatId, '👇 Use the buttons below to get summary or translation.', {
-        reply_markup: replyMarkup,
-      })
-    }
+    await sendDocument(chatId, bytes, filename, undefined, replyMarkup)
   }
 }

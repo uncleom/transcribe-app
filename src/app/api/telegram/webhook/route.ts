@@ -307,7 +307,11 @@ async function handleCallback(cbq: TelegramCallbackQuery) {
   if (action === 'sum') {
     await sendChatAction(chatId, 'typing')
     try {
-      const summary = await summariseTranscript(result.full_transcript, result.language ?? 'en', groqKey)
+      const summary = await summariseTranscript(
+        result.full_transcript,
+        result.language?.split(/[+\-]/)[0] ?? 'en',
+        groqKey
+      )
 
       const userLang = cbq.from.language_code ?? 'en'
       const targetLang = getTargetLang(userLang)
