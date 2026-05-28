@@ -269,10 +269,10 @@ export default function TranscriptionPage() {
 
         {/* Back link — top */}
         <button
-          onClick={() => router.push('/')}
+          onClick={() => router.push('/history')}
           className="mb-5 flex items-center gap-1 text-sm text-white/30 transition hover:text-white/60"
         >
-          ← New transcription
+          ← Transcriptions
         </button>
 
         {/* Header row */}
@@ -411,10 +411,10 @@ export default function TranscriptionPage() {
         {/* Back link — bottom */}
         <div className="mt-14 text-center">
           <button
-            onClick={() => router.push('/')}
+            onClick={() => router.push('/history')}
             className="text-sm text-white/25 transition hover:text-white/55"
           >
-            ← New transcription
+            ← Transcriptions
           </button>
         </div>
 
