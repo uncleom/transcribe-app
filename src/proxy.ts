@@ -31,6 +31,8 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    // Exclude /api/transcribe: large uploads must NOT pass through proxy, which
+    // buffers the body to proxyClientMaxBodySize (default 10MB) → 50MB uploads reset.
+    '/((?!api/transcribe|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }
