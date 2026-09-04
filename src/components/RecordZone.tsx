@@ -8,12 +8,17 @@ interface Props {
 
 type RecordState = 'idle' | 'requesting' | 'recording' | 'done' | 'error'
 
+/** Virtual/loopback devices produce timed silence — Gladia returns empty transcripts. */
+const VIRTUAL_MIC_RE =
+  /blackhole|soundflower|loopback|vb-?audio|cable\b|aggregate|multi-?output|virtual/i
+
 function pickMimeType(): string {
   if (typeof MediaRecorder === 'undefined') return ''
   const candidates = [
     'audio/webm;codecs=opus',
     'audio/webm',
-    'audio/mp4',
+    // Require AAC explicitly — bare audio/mp4 can be Opus-in-MP4 on Chrome (unplayable).
+    'audio/mp4;codecs=mp4a.40.2',
     'audio/ogg;codecs=opus',
     'audio/ogg',
   ]
@@ -32,20 +37,75 @@ function formatTime(secs: number): string {
   return `${m}:${s.toString().padStart(2, '0')}`
 }
 
+function isVirtualMic(label: string): boolean {
+  return VIRTUAL_MIC_RE.test(label)
+}
+
+/** Prefer a real mic over BlackHole / Loopback / etc. */
+function pickPreferredMicId(inputs: MediaDeviceInfo[]): string | undefined {
+  const real = inputs.filter((d) => d.deviceId && d.deviceId !== 'default' && !isVirtualMic(d.label))
+  const builtIn = real.find((d) =>
+    /built-?in|macbook|internal|microphone|микрофон/i.test(d.label)
+  )
+  return builtIn?.deviceId ?? real[0]?.deviceId
+}
+
+/**
+ * Open a mic stream, skipping virtual loopback devices when a real mic exists.
+ * Permission probe is required so enumerateDevices() returns labels.
+ */
+async function openMicStream(): Promise<{ stream: MediaStream; label: string }> {
+  const probe = await navigator.mediaDevices.getUserMedia({ audio: true })
+  probe.getTracks().forEach((t) => t.stop())
+
+  const inputs = (await navigator.mediaDevices.enumerateDevices()).filter(
+    (d) => d.kind === 'audioinput'
+  )
+  const preferredId = pickPreferredMicId(inputs)
+
+  const stream = await navigator.mediaDevices.getUserMedia(
+    preferredId
+      ? { audio: { deviceId: { exact: preferredId } } }
+      : { audio: true }
+  )
+  const label = stream.getAudioTracks()[0]?.label || 'Microphone'
+
+  if (isVirtualMic(label) && inputs.some((d) => !isVirtualMic(d.label))) {
+    stream.getTracks().forEach((t) => t.stop())
+    throw new Error(
+      'Browser selected a virtual audio device (e.g. BlackHole). Choose your real microphone in system/browser settings.'
+    )
+  }
+
+  return { stream, label }
+}
+
+/** Opus with speech is typically >5 KB/s; virtual silence is ~0.3 KB/s. */
+function isLikelySilent(blobSize: number, durationSecs: number): boolean {
+  const secs = Math.max(1, durationSecs)
+  return blobSize / secs < 1000
+}
+
 export default function RecordZone({ onFileReady }: Props) {
   const [state, setState] = useState<RecordState>('idle')
   const [elapsed, setElapsed] = useState(0)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
+  const [deviceLabel, setDeviceLabel] = useState<string | null>(null)
   const [supported] = useState(() => typeof MediaRecorder !== 'undefined' && !!pickMimeType())
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const chunksRef = useRef<Blob[]>([])
   const streamRef = useRef<MediaStream | null>(null)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const elapsedRef = useRef(0)
 
   function startTimer() {
     setElapsed(0)
-    timerRef.current = setInterval(() => setElapsed((s) => s + 1), 1000)
+    elapsedRef.current = 0
+    timerRef.current = setInterval(() => {
+      elapsedRef.current += 1
+      setElapsed(elapsedRef.current)
+    }, 1000)
   }
 
   function stopTimer() {
@@ -64,19 +124,26 @@ export default function RecordZone({ onFileReady }: Props) {
 
   async function startRecording() {
     setErrorMsg(null)
+    setDeviceLabel(null)
     setState('requesting')
 
     let stream: MediaStream
+    let label: string
     try {
-      stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-    } catch {
-      setErrorMsg('Microphone access denied. Please allow microphone and try again.')
+      ;({ stream, label } = await openMicStream())
+    } catch (err) {
+      const msg =
+        err instanceof Error && !/NotAllowedError|PermissionDenied/i.test(err.name + err.message)
+          ? err.message
+          : 'Microphone access denied. Please allow microphone and try again.'
+      setErrorMsg(msg)
       setState('error')
       return
     }
 
     streamRef.current = stream
     chunksRef.current = []
+    setDeviceLabel(label)
 
     const mimeType = pickMimeType()
     const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined)
@@ -91,8 +158,19 @@ export default function RecordZone({ onFileReady }: Props) {
       const mime = recorder.mimeType || mimeType || 'audio/webm'
       const ext = mimeToExt(mime)
       const ts = new Date().toISOString().slice(0, 19).replace(/[T:]/g, '-')
-      const blob = new Blob(chunksRef.current, { type: mime })
-      const file = new File([blob], `recording_${ts}.${ext}`, { type: mime })
+      // Strip codec params from File.type — some servers are picky.
+      const fileType = mime.split(';')[0].trim()
+      const blob = new Blob(chunksRef.current, { type: fileType })
+
+      if (isLikelySilent(blob.size, elapsedRef.current)) {
+        setErrorMsg(
+          `Recording is silent (got “${label}”). Pick your real microphone — not BlackHole or another virtual device.`
+        )
+        setState('error')
+        return
+      }
+
+      const file = new File([blob], `recording_${ts}.${ext}`, { type: fileType })
       onFileReady(file)
       setState('done')
     }
@@ -111,6 +189,7 @@ export default function RecordZone({ onFileReady }: Props) {
     setState('idle')
     setElapsed(0)
     setErrorMsg(null)
+    setDeviceLabel(null)
   }
 
   if (!supported) {
@@ -166,6 +245,11 @@ export default function RecordZone({ onFileReady }: Props) {
                 {formatTime(elapsed)}
               </p>
               <p className="mt-1 text-xs text-white/35">Recording…</p>
+              {deviceLabel && (
+                <p className="mt-1 max-w-xs truncate text-[11px] text-white/25" title={deviceLabel}>
+                  {deviceLabel}
+                </p>
+              )}
             </div>
             <button
               onClick={stopRecording}
