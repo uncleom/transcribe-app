@@ -1,0 +1,142 @@
+{
+  "Metadata": {
+    "title": "Transcribo",
+    "description": "Multilingual audio and video transcription with speaker labels and AI summaries"
+  },
+  "Nav": {
+    "new": "New",
+    "history": "History",
+    "account": "Account"
+  },
+  "LanguageSwitcher": {
+    "label": "Language",
+    "en": "EN",
+    "es": "ES",
+    "pt": "PT"
+  },
+  "Home": {
+    "tagline": "Upload audio or video — get a transcript with speaker labels",
+    "freeGuest": "3 minutes free ·",
+    "signIn": "Sign in",
+    "freeSignedIn": "for 20 minutes free",
+    "telegramTitle": "Also on Telegram",
+    "telegramDesc": "Forward voice messages or audio — get transcript in the chat",
+    "connect": "Connect",
+    "learnMore": "Learn more",
+    "tabUpload": "Upload",
+    "tabRecord": "Record"
+  },
+  "Upload": {
+    "ariaLabel": "Upload audio or video file",
+    "dropHere": "Drop audio or video here",
+    "browseHint": "or click to browse · MP3, MP4, WAV, M4A, OGG, FLAC · up to 500 MB",
+    "detecting": "detecting…",
+    "uploading": "Uploading…",
+    "unexpectedResponse": "Unexpected server response",
+    "networkError": "Network error — check your connection",
+    "uploadFailed": "Upload failed ({status})",
+    "notEnoughCredits": "Not enough credits for this file",
+    "notEnoughCreditsWithDuration": "Not enough credits for this file ({duration}).",
+    "topUp": "Top up credits →",
+    "transcribe": "Transcribe",
+    "tryAgain": "Try again"
+  },
+  "Record": {
+    "unsupported": "Audio recording is not supported in this browser.",
+    "useModernBrowser": "Please use Chrome, Firefox, or Safari 14+.",
+    "title": "Record audio",
+    "hint": "Tap to start — uses your microphone",
+    "start": "Start recording",
+    "requesting": "Requesting microphone…",
+    "recording": "Recording…",
+    "stop": "Stop",
+    "processing": "Processing…",
+    "tryAgain": "Try again",
+    "micDenied": "Microphone access denied. Please allow microphone and try again.",
+    "virtualMic": "Browser selected a virtual audio device (e.g. BlackHole). Choose your real microphone in system/browser settings.",
+    "silentRecording": "Recording is silent (got “{label}”). Pick your real microphone — not BlackHole or another virtual device."
+  },
+  "Login": {
+    "title": "Transcribo",
+    "subtitle": "Sign in to view your transcription history",
+    "continueGoogle": "Continue with Google"
+  },
+  "History": {
+    "title": "History",
+    "signInPrompt": "Sign in to see your transcription history",
+    "empty": "No transcriptions yet",
+    "uploadFirst": "Upload your first file",
+    "statusPending": "Pending",
+    "statusProcessing": "Processing",
+    "statusDone": "Done",
+    "statusError": "Error"
+  },
+  "Billing": {
+    "title": "Account",
+    "signInPrompt": "Sign in to manage your credits and history",
+    "creditsRemaining": "Credits remaining",
+    "availableFor": "available for transcription",
+    "topUpTitle": "Top up credits",
+    "topUpDesc": "Pay-as-you-go packages starting at $5 · Credits never expire",
+    "comingSoon": "Payment integration coming soon",
+    "telegramTitle": "Telegram Bot",
+    "telegramDesc": "Forward voice messages or audio — get transcripts in Telegram",
+    "signOut": "Sign out",
+    "zeroMin": "0 min",
+    "sec": "{n} sec",
+    "min": "{n} min",
+    "minSec": "{m} min {s} sec",
+    "hour": "{n} h",
+    "hourMin": "{h} h {m} min"
+  },
+  "ConnectTelegram": {
+    "title": "Telegram Bot",
+    "subtitle": "Transcribe audio and voice messages directly in Telegram",
+    "feature1": "Forward a voice message — get transcript instantly",
+    "feature2": "Works with audio from WhatsApp, iMessage, any app",
+    "feature3": "Speaker detection, AI summary, translation on demand",
+    "feature4": "All transcriptions synced to your web history",
+    "signInPrompt": "Sign in with Google to connect your Telegram account",
+    "signInButton": "Sign in with Google",
+    "connectHeading": "Connect your account",
+    "linkHint": "A link will be generated. Open it in Telegram to complete the connection.",
+    "backHome": "← Back to home"
+  },
+  "TelegramLink": {
+    "connected": "Connected",
+    "disconnect": "Disconnect",
+    "openLinkHint": "Open the link below in Telegram to complete the connection:",
+    "openBot": "Open @TranscriboAppBot →",
+    "expires": "Link expires in 15 minutes",
+    "generating": "Generating link…",
+    "linkAccount": "Link Telegram account"
+  },
+  "Transcription": {
+    "timedOut": "Transcription timed out — please try again",
+    "loadFailed": "Failed to load transcription",
+    "networkError": "Network error — please refresh",
+    "backHome": "Back to home",
+    "transcribing": "Transcribing…",
+    "failed": "Transcription failed.",
+    "tryAgain": "Try again",
+    "backList": "← Transcriptions",
+    "copyAll": "Copy all",
+    "copied": "Copied to clipboard",
+    "tabClean": "Text",
+    "tabDetailed": "Timestamps",
+    "tabSummary": "Summary",
+    "language": "Language:",
+    "generatingSummary": "Generating summary…",
+    "speaker": "Speaker {n}"
+  },
+  "Install": {
+    "close": "Close",
+    "title": "Install Transcribo",
+    "androidDesc": "Quick access from your home screen",
+    "install": "Install",
+    "tap": "Tap",
+    "share": "Share",
+    "then": "then",
+    "addToHome": "Add to Home Screen"
+  }
+}

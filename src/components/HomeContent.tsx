@@ -1,22 +1,24 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { useTranslations } from 'next-intl'
 import { Upload, Mic } from 'lucide-react'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import UploadZone from '@/components/UploadZone'
 import RecordZone from '@/components/RecordZone'
+import { useRouter } from '@/i18n/navigation'
 
 type Tab = 'upload' | 'record'
 
 export default function HomeContent() {
+  const t = useTranslations('Home')
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<Tab>('upload')
   const [recordedFile, setRecordedFile] = useState<File | undefined>()
 
   function handleFileReady(file: File) {
     setRecordedFile(file)
-    setActiveTab('upload')  // auto-switch to upload after recording
+    setActiveTab('upload')
   }
 
   function handleTabChange(v: string) {
@@ -33,14 +35,14 @@ export default function HomeContent() {
             className="flex items-center gap-2 rounded-md px-4 py-1.5 text-sm data-active:bg-[#e2ff00]/10 data-active:text-[#e2ff00]"
           >
             <Upload size={14} />
-            Upload
+            {t('tabUpload')}
           </TabsTrigger>
           <TabsTrigger
             value="record"
             className="flex items-center gap-2 rounded-md px-4 py-1.5 text-sm data-active:bg-[#e2ff00]/10 data-active:text-[#e2ff00]"
           >
             <Mic size={14} />
-            Record
+            {t('tabRecord')}
           </TabsTrigger>
         </TabsList>
 

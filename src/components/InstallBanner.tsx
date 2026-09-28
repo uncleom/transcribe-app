@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import { useTranslations } from 'next-intl'
 
 type Platform = 'android' | 'ios' | 'none'
 
@@ -14,7 +15,6 @@ const DISMISSED_KEY = 'pwa-install-dismissed'
 function detectPlatform(): Platform {
   if (typeof window === 'undefined') return 'none'
 
-  // Already installed
   if (
     window.matchMedia('(display-mode: standalone)').matches ||
     (window.navigator as unknown as { standalone?: boolean }).standalone === true
@@ -22,27 +22,25 @@ function detectPlatform(): Platform {
     return 'none'
   }
 
-  // User already dismissed
   if (localStorage.getItem(DISMISSED_KEY) === 'true') {
     return 'none'
   }
 
-  // iOS (beforeinstallprompt doesn't fire on iOS)
   if (/iphone|ipad|ipod/i.test(navigator.userAgent)) {
     return 'ios'
   }
 
-  return 'none' // android is set via beforeinstallprompt event
+  return 'none'
 }
 
 export default function InstallBanner() {
+  const t = useTranslations('Install')
   const [platform, setPlatform] = useState<Platform>(detectPlatform)
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null)
 
   useEffect(() => {
     if (platform === 'ios') return
 
-    // Android: wait for beforeinstallprompt
     const handler = (e: Event) => {
       e.preventDefault()
       if (localStorage.getItem(DISMISSED_KEY) === 'true') return
@@ -75,7 +73,7 @@ export default function InstallBanner() {
       <button
         onClick={handleDismiss}
         className="absolute right-3 top-3 text-white/30 transition hover:text-white/70"
-        aria-label="Close"
+        aria-label={t('close')}
       >
         ✕
       </button>
@@ -89,31 +87,31 @@ export default function InstallBanner() {
             className="h-10 w-10 shrink-0 rounded-xl"
           />
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold text-white">Install Transcribo</p>
-            <p className="text-xs text-white/45">Quick access from your home screen</p>
+            <p className="text-sm font-semibold text-white">{t('title')}</p>
+            <p className="text-xs text-white/45">{t('androidDesc')}</p>
           </div>
           <button
             onClick={handleInstall}
             className="shrink-0 rounded-lg bg-[#e2ff00] px-3 py-1.5 text-sm font-semibold text-black transition hover:bg-[#d4ee00]"
           >
-            Install
+            {t('install')}
           </button>
         </div>
       )}
 
       {platform === 'ios' && (
         <div className="pr-4">
-          <p className="text-sm font-semibold text-white">Install Transcribo</p>
+          <p className="text-sm font-semibold text-white">{t('title')}</p>
           <p className="mt-1 flex flex-wrap items-center gap-x-1 gap-y-0.5 text-xs text-white/60">
-            Tap
+            {t('tap')}
             <span className="inline-flex items-center gap-0.5 rounded bg-white/10 px-1.5 py-0.5 text-white">
               <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M12 2 8 6h3v9h2V6h3L12 2zM5 16v4h14v-4h-2v2H7v-2H5z" />
               </svg>
-              Share
+              {t('share')}
             </span>
-            then
-            <span className="font-medium text-white">&ldquo;Add to Home Screen&rdquo;</span>
+            {t('then')}
+            <span className="font-medium text-white">&ldquo;{t('addToHome')}&rdquo;</span>
           </p>
         </div>
       )}

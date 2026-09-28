@@ -1,0 +1,142 @@
+{
+  "Metadata": {
+    "title": "Transcribo",
+    "description": "Transcripción multilingüe de audio y video con etiquetas de hablantes y resúmenes con IA"
+  },
+  "Nav": {
+    "new": "Nuevo",
+    "history": "Historial",
+    "account": "Cuenta"
+  },
+  "LanguageSwitcher": {
+    "label": "Idioma",
+    "en": "EN",
+    "es": "ES",
+    "pt": "PT"
+  },
+  "Home": {
+    "tagline": "Sube audio o video — obtén la transcripción con etiquetas de hablantes",
+    "freeGuest": "3 minutos gratis ·",
+    "signIn": "Inicia sesión",
+    "freeSignedIn": "para 20 minutos gratis",
+    "telegramTitle": "También en Telegram",
+    "telegramDesc": "Reenvía notas de voz o audio — recibe la transcripción en el chat",
+    "connect": "Conectar",
+    "learnMore": "Más info",
+    "tabUpload": "Subir",
+    "tabRecord": "Grabar"
+  },
+  "Upload": {
+    "ariaLabel": "Subir archivo de audio o video",
+    "dropHere": "Suelta audio o video aquí",
+    "browseHint": "o haz clic para elegir · MP3, MP4, WAV, M4A, OGG, FLAC · hasta 500 MB",
+    "detecting": "detectando…",
+    "uploading": "Subiendo…",
+    "unexpectedResponse": "Respuesta inesperada del servidor",
+    "networkError": "Error de red — revisa tu conexión",
+    "uploadFailed": "Error al subir ({status})",
+    "notEnoughCredits": "No hay créditos suficientes para este archivo",
+    "notEnoughCreditsWithDuration": "No hay créditos suficientes para este archivo ({duration}).",
+    "topUp": "Recargar créditos →",
+    "transcribe": "Transcribir",
+    "tryAgain": "Reintentar"
+  },
+  "Record": {
+    "unsupported": "La grabación de audio no está disponible en este navegador.",
+    "useModernBrowser": "Usa Chrome, Firefox o Safari 14+.",
+    "title": "Grabar audio",
+    "hint": "Toca para empezar — usa tu micrófono",
+    "start": "Empezar a grabar",
+    "requesting": "Pidiendo acceso al micrófono…",
+    "recording": "Grabando…",
+    "stop": "Detener",
+    "processing": "Procesando…",
+    "tryAgain": "Reintentar",
+    "micDenied": "Acceso al micrófono denegado. Permítelo e inténtalo de nuevo.",
+    "virtualMic": "El navegador eligió un dispositivo virtual (p. ej. BlackHole). Elige tu micrófono real en los ajustes.",
+    "silentRecording": "La grabación está en silencio (dispositivo “{label}”). Elige tu micrófono real, no BlackHole u otro virtual."
+  },
+  "Login": {
+    "title": "Transcribo",
+    "subtitle": "Inicia sesión para ver tu historial de transcripciones",
+    "continueGoogle": "Continuar con Google"
+  },
+  "History": {
+    "title": "Historial",
+    "signInPrompt": "Inicia sesión para ver tu historial de transcripciones",
+    "empty": "Aún no hay transcripciones",
+    "uploadFirst": "Sube tu primer archivo",
+    "statusPending": "En cola",
+    "statusProcessing": "Procesando",
+    "statusDone": "Listo",
+    "statusError": "Error"
+  },
+  "Billing": {
+    "title": "Cuenta",
+    "signInPrompt": "Inicia sesión para gestionar créditos e historial",
+    "creditsRemaining": "Créditos restantes",
+    "availableFor": "disponibles para transcribir",
+    "topUpTitle": "Recargar créditos",
+    "topUpDesc": "Paquetes de pago por uso desde $5 · Los créditos no vencen",
+    "comingSoon": "Integración de pagos próximamente",
+    "telegramTitle": "Bot de Telegram",
+    "telegramDesc": "Reenvía notas de voz o audio — recibe la transcripción en Telegram",
+    "signOut": "Cerrar sesión",
+    "zeroMin": "0 min",
+    "sec": "{n} s",
+    "min": "{n} min",
+    "minSec": "{m} min {s} s",
+    "hour": "{n} h",
+    "hourMin": "{h} h {m} min"
+  },
+  "ConnectTelegram": {
+    "title": "Bot de Telegram",
+    "subtitle": "Transcribe audio y notas de voz directo en Telegram",
+    "feature1": "Reenvía una nota de voz — recibe la transcripción al instante",
+    "feature2": "Funciona con audio de WhatsApp, iMessage o cualquier app",
+    "feature3": "Detección de hablantes, resumen con IA y traducción a pedido",
+    "feature4": "Todas las transcripciones se sincronizan con tu historial web",
+    "signInPrompt": "Inicia sesión con Google para conectar tu cuenta de Telegram",
+    "signInButton": "Iniciar sesión con Google",
+    "connectHeading": "Conecta tu cuenta",
+    "linkHint": "Se generará un enlace. Ábrelo en Telegram para completar la conexión.",
+    "backHome": "← Volver al inicio"
+  },
+  "TelegramLink": {
+    "connected": "Conectado",
+    "disconnect": "Desconectar",
+    "openLinkHint": "Abre el enlace en Telegram para completar la conexión:",
+    "openBot": "Abrir @TranscriboAppBot →",
+    "expires": "El enlace vence en 15 minutos",
+    "generating": "Generando enlace…",
+    "linkAccount": "Vincular cuenta de Telegram"
+  },
+  "Transcription": {
+    "timedOut": "La transcripción tardó demasiado — inténtalo de nuevo",
+    "loadFailed": "No se pudo cargar la transcripción",
+    "networkError": "Error de red — actualiza la página",
+    "backHome": "Volver al inicio",
+    "transcribing": "Transcribiendo…",
+    "failed": "La transcripción falló.",
+    "tryAgain": "Reintentar",
+    "backList": "← Transcripciones",
+    "copyAll": "Copiar todo",
+    "copied": "Copiado al portapapeles",
+    "tabClean": "Texto",
+    "tabDetailed": "Marcas de tiempo",
+    "tabSummary": "Resumen",
+    "language": "Idioma:",
+    "generatingSummary": "Generando resumen…",
+    "speaker": "Hablante {n}"
+  },
+  "Install": {
+    "close": "Cerrar",
+    "title": "Instalar Transcribo",
+    "androidDesc": "Acceso rápido desde tu pantalla de inicio",
+    "install": "Instalar",
+    "tap": "Toca",
+    "share": "Compartir",
+    "then": "luego",
+    "addToHome": "Agregar a inicio"
+  }
+}

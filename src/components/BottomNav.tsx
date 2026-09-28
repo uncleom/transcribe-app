@@ -1,18 +1,19 @@
 'use client'
 
-import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { Mic, History, User } from 'lucide-react'
+import { Link, usePathname } from '@/i18n/navigation'
 import { cn } from '@/lib/utils'
 
-const NAV_ITEMS = [
-  { href: '/',        icon: Mic,     label: 'New'     },
-  { href: '/history', icon: History, label: 'History' },
-  { href: '/billing', icon: User,    label: 'Account' },
-]
-
 export default function BottomNav() {
+  const t = useTranslations('Nav')
   const pathname = usePathname()
+
+  const NAV_ITEMS = [
+    { href: '/' as const, icon: Mic, label: t('new') },
+    { href: '/history' as const, icon: History, label: t('history') },
+    { href: '/billing' as const, icon: User, label: t('account') },
+  ]
 
   return (
     <nav

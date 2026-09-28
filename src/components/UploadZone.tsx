@@ -1,7 +1,9 @@
 'use client'
 
 import { useState, useRef, useEffect, DragEvent, ChangeEvent } from 'react'
+import { useTranslations } from 'next-intl'
 import { Button } from '@/components/ui/button'
+import { Link } from '@/i18n/navigation'
 
 interface Props {
   onUploadComplete: (id: string) => void
@@ -11,14 +13,15 @@ interface Props {
 type State =
   | 'idle'
   | 'dragging'
-  | 'detecting'       // measuring duration
-  | 'checking'        // calling /api/credits
-  | 'selected'        // ready to upload
-  | 'insufficient'    // not enough credits
+  | 'detecting'
+  | 'checking'
+  | 'selected'
+  | 'insufficient'
   | 'uploading'
   | 'error'
 
 export default function UploadZone({ onUploadComplete, initialFile }: Props) {
+  const t = useTranslations('Upload')
   const [state, setState] = useState<State>('idle')
   const [file, setFile] = useState<File | null>(null)
   const [durationSecs, setDurationSecs] = useState<number | null>(null)
@@ -105,7 +108,7 @@ export default function UploadZone({ onUploadComplete, initialFile }: Props) {
       try {
         json = JSON.parse(xhr.responseText)
       } catch {
-        setErrorMsg('Unexpected server response')
+        setErrorMsg(t('unexpectedResponse'))
         setState('error')
         return
       }
@@ -115,13 +118,13 @@ export default function UploadZone({ onUploadComplete, initialFile }: Props) {
       } else if (xhr.status === 402 || json.code === 'credits_insufficient') {
         setState('insufficient')
       } else {
-        setErrorMsg(json.error ?? `Upload failed (${xhr.status})`)
+        setErrorMsg(json.error ?? t('uploadFailed', { status: xhr.status }))
         setState('error')
       }
     })
 
     xhr.addEventListener('error', () => {
-      setErrorMsg('Network error — check your connection')
+      setErrorMsg(t('networkError'))
       setState('error')
     })
 
@@ -135,11 +138,10 @@ export default function UploadZone({ onUploadComplete, initialFile }: Props) {
 
   return (
     <div className="w-full">
-      {/* Drop zone */}
       <div
         role="button"
         tabIndex={0}
-        aria-label="Upload audio or video file"
+        aria-label={t('ariaLabel')}
         onClick={() => !isUploading && !isDetecting && inputRef.current?.click()}
         onKeyDown={(e) =>
           e.key === 'Enter' && !isUploading && !isDetecting && inputRef.current?.click()
@@ -170,7 +172,6 @@ export default function UploadZone({ onUploadComplete, initialFile }: Props) {
           disabled={isUploading || isDetecting}
         />
 
-        {/* Icon */}
         <div
           className={[
             'flex h-14 w-14 items-center justify-center rounded-full transition-colors',
@@ -180,13 +181,10 @@ export default function UploadZone({ onUploadComplete, initialFile }: Props) {
           <UploadIcon className={isDragging ? 'text-[#e2ff00]' : 'text-white/40'} />
         </div>
 
-        {/* Labels */}
         {!file ? (
           <>
-            <p className="font-medium text-white/80">Drop audio or video here</p>
-            <p className="text-sm text-white/35">
-              or click to browse · MP3, MP4, WAV, M4A, OGG, FLAC · up to 500 MB
-            </p>
+            <p className="font-medium text-white/80">{t('dropHere')}</p>
+            <p className="text-sm text-white/35">{t('browseHint')}</p>
           </>
         ) : (
           <div className="flex flex-col items-center gap-1">
@@ -199,17 +197,16 @@ export default function UploadZone({ onUploadComplete, initialFile }: Props) {
                   <span>{formatDuration(durationSecs)}</span>
                 </>
               )}
-              {isDetecting && <span className="animate-pulse">detecting…</span>}
+              {isDetecting && <span className="animate-pulse">{t('detecting')}</span>}
             </div>
           </div>
         )}
       </div>
 
-      {/* Progress bar */}
       {isUploading && (
         <div className="mt-4 space-y-1.5">
           <div className="flex justify-between text-xs text-white/40">
-            <span>Uploading…</span>
+            <span>{t('uploading')}</span>
             <span>{progress}%</span>
           </div>
           <div className="h-1 overflow-hidden rounded-full bg-white/10">
@@ -221,54 +218,48 @@ export default function UploadZone({ onUploadComplete, initialFile }: Props) {
         </div>
       )}
 
-      {/* Error */}
       {state === 'error' && errorMsg && (
         <p className="mt-3 text-sm text-red-400">{errorMsg}</p>
       )}
 
-      {/* Insufficient credits */}
       {state === 'insufficient' && (
         <div className="mt-4 rounded-xl border border-yellow-400/20 bg-yellow-400/5 px-4 py-3">
           <p className="text-sm text-yellow-300">
-            Not enough credits for this file
-            {durationSecs != null && ` (${formatDuration(durationSecs)})`}.
+            {durationSecs != null
+              ? t('notEnoughCreditsWithDuration', { duration: formatDuration(durationSecs) })
+              : t('notEnoughCredits')}
           </p>
-          <a
+          <Link
             href="/billing"
             className="mt-2 inline-block text-sm font-medium text-[#e2ff00] hover:opacity-80 transition"
           >
-            Top up credits →
-          </a>
+            {t('topUp')}
+          </Link>
         </div>
       )}
 
-      {/* Transcribe button */}
       {state === 'selected' && (
         <Button
           onClick={startUpload}
           className="mt-4 w-full rounded-xl bg-[#e2ff00] py-3.5 text-sm font-semibold text-black hover:opacity-90 hover:bg-[#e2ff00] active:opacity-80"
         >
-          Transcribe
+          {t('transcribe')}
         </Button>
       )}
 
-      {/* Retry button */}
       {state === 'error' && (
         <Button
           variant="outline"
           onClick={() => { setState('selected'); setErrorMsg(null) }}
           className="mt-3 w-full rounded-xl border-white/15 py-3 text-white/60 hover:border-white/25 hover:text-white/80 hover:bg-transparent"
         >
-          Try again
+          {t('tryAgain')}
         </Button>
       )}
     </div>
   )
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-/** Detect audio/video duration via HTMLVideoElement (works for both media types). */
 function detectDuration(file: File): Promise<number> {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file)

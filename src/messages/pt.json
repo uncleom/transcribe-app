@@ -1,0 +1,142 @@
+{
+  "Metadata": {
+    "title": "Transcribo",
+    "description": "Transcrição multilíngue de áudio e vídeo com identificação de falantes e resumos com IA"
+  },
+  "Nav": {
+    "new": "Novo",
+    "history": "Histórico",
+    "account": "Conta"
+  },
+  "LanguageSwitcher": {
+    "label": "Idioma",
+    "en": "EN",
+    "es": "ES",
+    "pt": "PT"
+  },
+  "Home": {
+    "tagline": "Envie áudio ou vídeo — receba a transcrição com falantes identificados",
+    "freeGuest": "3 minutos grátis ·",
+    "signIn": "Entrar",
+    "freeSignedIn": "para 20 minutos grátis",
+    "telegramTitle": "Também no Telegram",
+    "telegramDesc": "Encaminhe áudios ou mensagens de voz — receba a transcrição no chat",
+    "connect": "Conectar",
+    "learnMore": "Saiba mais",
+    "tabUpload": "Enviar",
+    "tabRecord": "Gravar"
+  },
+  "Upload": {
+    "ariaLabel": "Enviar arquivo de áudio ou vídeo",
+    "dropHere": "Solte áudio ou vídeo aqui",
+    "browseHint": "ou clique para escolher · MP3, MP4, WAV, M4A, OGG, FLAC · até 500 MB",
+    "detecting": "detectando…",
+    "uploading": "Enviando…",
+    "unexpectedResponse": "Resposta inesperada do servidor",
+    "networkError": "Erro de rede — verifique sua conexão",
+    "uploadFailed": "Falha no envio ({status})",
+    "notEnoughCredits": "Créditos insuficientes para este arquivo",
+    "notEnoughCreditsWithDuration": "Créditos insuficientes para este arquivo ({duration}).",
+    "topUp": "Recarregar créditos →",
+    "transcribe": "Transcrever",
+    "tryAgain": "Tentar de novo"
+  },
+  "Record": {
+    "unsupported": "A gravação de áudio não é suportada neste navegador.",
+    "useModernBrowser": "Use Chrome, Firefox ou Safari 14+.",
+    "title": "Gravar áudio",
+    "hint": "Toque para começar — usa seu microfone",
+    "start": "Começar a gravar",
+    "requesting": "Solicitando microfone…",
+    "recording": "Gravando…",
+    "stop": "Parar",
+    "processing": "Processando…",
+    "tryAgain": "Tentar de novo",
+    "micDenied": "Acesso ao microfone negado. Permita o microfone e tente de novo.",
+    "virtualMic": "O navegador escolheu um dispositivo virtual (ex.: BlackHole). Escolha seu microfone real nas configurações.",
+    "silentRecording": "A gravação está em silêncio (dispositivo “{label}”). Escolha seu microfone real — não BlackHole ou outro virtual."
+  },
+  "Login": {
+    "title": "Transcribo",
+    "subtitle": "Entre para ver seu histórico de transcrições",
+    "continueGoogle": "Continuar com Google"
+  },
+  "History": {
+    "title": "Histórico",
+    "signInPrompt": "Entre para ver seu histórico de transcrições",
+    "empty": "Nenhuma transcrição ainda",
+    "uploadFirst": "Envie seu primeiro arquivo",
+    "statusPending": "Na fila",
+    "statusProcessing": "Processando",
+    "statusDone": "Pronto",
+    "statusError": "Erro"
+  },
+  "Billing": {
+    "title": "Conta",
+    "signInPrompt": "Entre para gerenciar créditos e histórico",
+    "creditsRemaining": "Créditos restantes",
+    "availableFor": "disponíveis para transcrição",
+    "topUpTitle": "Recarregar créditos",
+    "topUpDesc": "Pacotes avulsos a partir de $5 · Créditos não expiram",
+    "comingSoon": "Integração de pagamento em breve",
+    "telegramTitle": "Bot do Telegram",
+    "telegramDesc": "Encaminhe áudios ou mensagens de voz — receba a transcrição no Telegram",
+    "signOut": "Sair",
+    "zeroMin": "0 min",
+    "sec": "{n} s",
+    "min": "{n} min",
+    "minSec": "{m} min {s} s",
+    "hour": "{n} h",
+    "hourMin": "{h} h {m} min"
+  },
+  "ConnectTelegram": {
+    "title": "Bot do Telegram",
+    "subtitle": "Transcreva áudio e mensagens de voz direto no Telegram",
+    "feature1": "Encaminhe uma mensagem de voz — receba a transcrição na hora",
+    "feature2": "Funciona com áudio do WhatsApp, iMessage ou qualquer app",
+    "feature3": "Detecção de falantes, resumo com IA e tradução sob demanda",
+    "feature4": "Todas as transcrições sincronizam com seu histórico na web",
+    "signInPrompt": "Entre com Google para conectar sua conta do Telegram",
+    "signInButton": "Entrar com Google",
+    "connectHeading": "Conecte sua conta",
+    "linkHint": "Um link será gerado. Abra no Telegram para concluir a conexão.",
+    "backHome": "← Voltar ao início"
+  },
+  "TelegramLink": {
+    "connected": "Conectado",
+    "disconnect": "Desconectar",
+    "openLinkHint": "Abra o link abaixo no Telegram para concluir a conexão:",
+    "openBot": "Abrir @TranscriboAppBot →",
+    "expires": "O link expira em 15 minutos",
+    "generating": "Gerando link…",
+    "linkAccount": "Vincular conta do Telegram"
+  },
+  "Transcription": {
+    "timedOut": "A transcrição demorou demais — tente de novo",
+    "loadFailed": "Não foi possível carregar a transcrição",
+    "networkError": "Erro de rede — atualize a página",
+    "backHome": "Voltar ao início",
+    "transcribing": "Transcrevendo…",
+    "failed": "A transcrição falhou.",
+    "tryAgain": "Tentar de novo",
+    "backList": "← Transcrições",
+    "copyAll": "Copiar tudo",
+    "copied": "Copiado para a área de transferência",
+    "tabClean": "Texto",
+    "tabDetailed": "Timestamps",
+    "tabSummary": "Resumo",
+    "language": "Idioma:",
+    "generatingSummary": "Gerando resumo…",
+    "speaker": "Falante {n}"
+  },
+  "Install": {
+    "close": "Fechar",
+    "title": "Instalar Transcribo",
+    "androidDesc": "Acesso rápido pela tela inicial",
+    "install": "Instalar",
+    "tap": "Toque em",
+    "share": "Compartilhar",
+    "then": "depois",
+    "addToHome": "Adicionar à Tela de Início"
+  }
+}

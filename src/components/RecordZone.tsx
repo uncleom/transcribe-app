@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
+import { useTranslations } from 'next-intl'
 
 interface Props {
   onFileReady: (file: File) => void
@@ -8,7 +9,6 @@ interface Props {
 
 type RecordState = 'idle' | 'requesting' | 'recording' | 'done' | 'error'
 
-/** Virtual/loopback devices produce timed silence — Gladia returns empty transcripts. */
 const VIRTUAL_MIC_RE =
   /blackhole|soundflower|loopback|vb-?audio|cable\b|aggregate|multi-?output|virtual/i
 
@@ -17,7 +17,6 @@ function pickMimeType(): string {
   const candidates = [
     'audio/webm;codecs=opus',
     'audio/webm',
-    // Require AAC explicitly — bare audio/mp4 can be Opus-in-MP4 on Chrome (unplayable).
     'audio/mp4;codecs=mp4a.40.2',
     'audio/ogg;codecs=opus',
     'audio/ogg',
@@ -41,7 +40,6 @@ function isVirtualMic(label: string): boolean {
   return VIRTUAL_MIC_RE.test(label)
 }
 
-/** Prefer a real mic over BlackHole / Loopback / etc. */
 function pickPreferredMicId(inputs: MediaDeviceInfo[]): string | undefined {
   const real = inputs.filter((d) => d.deviceId && d.deviceId !== 'default' && !isVirtualMic(d.label))
   const builtIn = real.find((d) =>
@@ -50,10 +48,6 @@ function pickPreferredMicId(inputs: MediaDeviceInfo[]): string | undefined {
   return builtIn?.deviceId ?? real[0]?.deviceId
 }
 
-/**
- * Open a mic stream, skipping virtual loopback devices when a real mic exists.
- * Permission probe is required so enumerateDevices() returns labels.
- */
 async function openMicStream(): Promise<{ stream: MediaStream; label: string }> {
   const probe = await navigator.mediaDevices.getUserMedia({ audio: true })
   probe.getTracks().forEach((t) => t.stop())
@@ -72,21 +66,21 @@ async function openMicStream(): Promise<{ stream: MediaStream; label: string }> 
 
   if (isVirtualMic(label) && inputs.some((d) => !isVirtualMic(d.label))) {
     stream.getTracks().forEach((t) => t.stop())
-    throw new Error(
-      'Browser selected a virtual audio device (e.g. BlackHole). Choose your real microphone in system/browser settings.'
-    )
+    const err = new Error('VIRTUAL_MIC')
+    err.name = 'VirtualMicError'
+    throw err
   }
 
   return { stream, label }
 }
 
-/** Opus with speech is typically >5 KB/s; virtual silence is ~0.3 KB/s. */
 function isLikelySilent(blobSize: number, durationSecs: number): boolean {
   const secs = Math.max(1, durationSecs)
   return blobSize / secs < 1000
 }
 
 export default function RecordZone({ onFileReady }: Props) {
+  const t = useTranslations('Record')
   const [state, setState] = useState<RecordState>('idle')
   const [elapsed, setElapsed] = useState(0)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
@@ -133,9 +127,11 @@ export default function RecordZone({ onFileReady }: Props) {
       ;({ stream, label } = await openMicStream())
     } catch (err) {
       const msg =
-        err instanceof Error && !/NotAllowedError|PermissionDenied/i.test(err.name + err.message)
-          ? err.message
-          : 'Microphone access denied. Please allow microphone and try again.'
+        err instanceof Error && err.name === 'VirtualMicError'
+          ? t('virtualMic')
+          : err instanceof Error && !/NotAllowedError|PermissionDenied/i.test(err.name + err.message)
+            ? err.message
+            : t('micDenied')
       setErrorMsg(msg)
       setState('error')
       return
@@ -158,14 +154,11 @@ export default function RecordZone({ onFileReady }: Props) {
       const mime = recorder.mimeType || mimeType || 'audio/webm'
       const ext = mimeToExt(mime)
       const ts = new Date().toISOString().slice(0, 19).replace(/[T:]/g, '-')
-      // Strip codec params from File.type — some servers are picky.
       const fileType = mime.split(';')[0].trim()
       const blob = new Blob(chunksRef.current, { type: fileType })
 
       if (isLikelySilent(blob.size, elapsedRef.current)) {
-        setErrorMsg(
-          `Recording is silent (got “${label}”). Pick your real microphone — not BlackHole or another virtual device.`
-        )
+        setErrorMsg(t('silentRecording', { label }))
         setState('error')
         return
       }
@@ -175,7 +168,7 @@ export default function RecordZone({ onFileReady }: Props) {
       setState('done')
     }
 
-    recorder.start(250) // collect chunks every 250ms
+    recorder.start(250)
     setState('recording')
     startTimer()
   }
@@ -195,10 +188,8 @@ export default function RecordZone({ onFileReady }: Props) {
   if (!supported) {
     return (
       <div className="rounded-2xl border border-white/10 px-8 py-12 text-center">
-        <p className="text-sm text-white/40">
-          Audio recording is not supported in this browser.
-        </p>
-        <p className="mt-1 text-xs text-white/25">Please use Chrome, Firefox, or Safari 14+.</p>
+        <p className="text-sm text-white/40">{t('unsupported')}</p>
+        <p className="mt-1 text-xs text-white/25">{t('useModernBrowser')}</p>
       </div>
     )
   }
@@ -207,31 +198,28 @@ export default function RecordZone({ onFileReady }: Props) {
     <div className="w-full">
       <div className="flex flex-col items-center gap-5 rounded-2xl border-2 border-dashed border-white/20 px-8 py-14 text-center">
 
-        {/* Idle */}
         {state === 'idle' && (
           <>
             <div className="flex h-14 w-14 items-center justify-center rounded-full bg-white/8">
               <MicIcon className="text-white/40" />
             </div>
             <div>
-              <p className="font-medium text-white/80">Record audio</p>
-              <p className="mt-1 text-sm text-white/35">Tap to start — uses your microphone</p>
+              <p className="font-medium text-white/80">{t('title')}</p>
+              <p className="mt-1 text-sm text-white/35">{t('hint')}</p>
             </div>
             <button
               onClick={startRecording}
               className="rounded-xl bg-[#e2ff00] px-8 py-3 text-sm font-semibold text-black transition hover:opacity-90 active:opacity-80"
             >
-              Start recording
+              {t('start')}
             </button>
           </>
         )}
 
-        {/* Requesting permission */}
         {state === 'requesting' && (
-          <p className="text-sm text-white/50 animate-pulse">Requesting microphone…</p>
+          <p className="text-sm text-white/50 animate-pulse">{t('requesting')}</p>
         )}
 
-        {/* Recording */}
         {state === 'recording' && (
           <>
             <div className="relative flex h-14 w-14 items-center justify-center">
@@ -244,7 +232,7 @@ export default function RecordZone({ onFileReady }: Props) {
               <p className="text-2xl font-mono font-semibold text-white tabular-nums">
                 {formatTime(elapsed)}
               </p>
-              <p className="mt-1 text-xs text-white/35">Recording…</p>
+              <p className="mt-1 text-xs text-white/35">{t('recording')}</p>
               {deviceLabel && (
                 <p className="mt-1 max-w-xs truncate text-[11px] text-white/25" title={deviceLabel}>
                   {deviceLabel}
@@ -255,17 +243,15 @@ export default function RecordZone({ onFileReady }: Props) {
               onClick={stopRecording}
               className="rounded-xl border border-white/15 px-8 py-3 text-sm text-white/70 transition hover:border-white/30 hover:text-white"
             >
-              Stop
+              {t('stop')}
             </button>
           </>
         )}
 
-        {/* Done — parent switches away, but show brief state */}
         {state === 'done' && (
-          <p className="text-sm text-white/50 animate-pulse">Processing…</p>
+          <p className="text-sm text-white/50 animate-pulse">{t('processing')}</p>
         )}
 
-        {/* Error */}
         {state === 'error' && (
           <>
             <p className="text-sm text-red-400">{errorMsg}</p>
@@ -273,7 +259,7 @@ export default function RecordZone({ onFileReady }: Props) {
               onClick={reset}
               className="text-sm text-white/40 underline hover:text-white/70 transition"
             >
-              Try again
+              {t('tryAgain')}
             </button>
           </>
         )}

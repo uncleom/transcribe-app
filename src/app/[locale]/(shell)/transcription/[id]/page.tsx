@@ -1,13 +1,15 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import type { TranscriptionResult } from '@/types'
 import { mergeUtterances } from '@/lib/transcription'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
+import { useRouter } from '@/i18n/navigation'
 
 interface TranscriptionData {
   id: string
@@ -31,8 +33,6 @@ function formatTime(secs: number): string {
   return `${m}:${s.toString().padStart(2, '0')}`
 }
 
-
-// Renders the subset of Markdown that Groq typically produces
 function renderMarkdown(text: string) {
   const lines = text.split('\n')
   const elements: React.ReactNode[] = []
@@ -41,13 +41,11 @@ function renderMarkdown(text: string) {
   while (i < lines.length) {
     const line = lines[i]
 
-    // Skip blank lines
     if (line.trim() === '') {
       i++
       continue
     }
 
-    // ## Heading or ### Heading
     if (/^#{1,3} /.test(line)) {
       const content = line.replace(/^#{1,3} /, '')
       elements.push(
@@ -59,7 +57,6 @@ function renderMarkdown(text: string) {
       continue
     }
 
-    // Bullet list: collect consecutive - or * lines
     if (/^[-*] /.test(line)) {
       const items: string[] = []
       while (i < lines.length && /^[-*] /.test(lines[i])) {
@@ -79,7 +76,6 @@ function renderMarkdown(text: string) {
       continue
     }
 
-    // Numbered list: collect consecutive N. lines
     if (/^\d+\. /.test(line)) {
       const items: string[] = []
       let n = 1
@@ -102,7 +98,6 @@ function renderMarkdown(text: string) {
       continue
     }
 
-    // Regular paragraph
     elements.push(
       <p key={i} className="text-sm leading-relaxed text-white/80">
         {inlineFormat(line)}
@@ -114,7 +109,6 @@ function renderMarkdown(text: string) {
   return <div className="space-y-1">{elements}</div>
 }
 
-// Handles **bold** and *italic* inline
 function inlineFormat(text: string): React.ReactNode {
   const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/)
   return parts.map((part, i) => {
@@ -131,6 +125,7 @@ function inlineFormat(text: string): React.ReactNode {
 type ViewTab = 'clean' | 'detailed' | 'summary'
 
 export default function TranscriptionPage() {
+  const t = useTranslations('Transcription')
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
 
@@ -148,7 +143,7 @@ export default function TranscriptionPage() {
 
     async function tick() {
       if (attempts++ >= MAX_ATTEMPTS) {
-        if (!cancelled) setFetchError('Transcription timed out — please try again')
+        if (!cancelled) setFetchError(t('timedOut'))
         return
       }
 
@@ -156,7 +151,7 @@ export default function TranscriptionPage() {
         const res = await fetch(`/api/transcribe/${id}`)
         if (!res.ok) {
           const json = await res.json()
-          if (!cancelled) setFetchError(json.error ?? 'Failed to load transcription')
+          if (!cancelled) setFetchError(json.error ?? t('loadFailed'))
           return
         }
         const json: TranscriptionData = await res.json()
@@ -168,13 +163,13 @@ export default function TranscriptionPage() {
           setTimeout(tick, 5_000)
         }
       } catch {
-        if (!cancelled) setFetchError('Network error — please refresh')
+        if (!cancelled) setFetchError(t('networkError'))
       }
     }
 
     tick()
     return () => { cancelled = true }
-  }, [id])
+  }, [id, t])
 
   async function regenerateSummary(lang: string) {
     setSummaryLang(lang)
@@ -201,18 +196,18 @@ export default function TranscriptionPage() {
     let text = ''
     if (view === 'clean') {
       text = mergeUtterances(r.utterances)
-        .map((u) => `[Speaker ${u.speaker}] ${u.text}`)
+        .map((u) => `[${t('speaker', { n: u.speaker })}] ${u.text}`)
         .join('\n\n')
     } else if (view === 'detailed') {
       text = r.utterances
-        .map((u) => `[Speaker ${u.speaker}] [${formatTime(u.start)}–${formatTime(u.end)}] ${u.text}`)
+        .map((u) => `[${t('speaker', { n: u.speaker })}] [${formatTime(u.start)}–${formatTime(u.end)}] ${u.text}`)
         .join('\n\n')
     } else if (view === 'summary') {
       text = (regeneratedSummary ?? r.summary) ?? ''
     }
     if (!text) return
     await navigator.clipboard.writeText(text)
-    toast.success('Copied to clipboard')
+    toast.success(t('copied'))
   }
 
   if (fetchError) {
@@ -220,7 +215,7 @@ export default function TranscriptionPage() {
       <main className="flex flex-1 flex-col items-center justify-center gap-4 px-4">
         <p className="text-red-400">{fetchError}</p>
         <button onClick={() => router.push('/')} className="text-sm text-white/50 underline hover:text-white/80">
-          Back to home
+          {t('backHome')}
         </button>
       </main>
     )
@@ -231,7 +226,7 @@ export default function TranscriptionPage() {
       <main className="flex flex-1 flex-col items-center justify-center gap-5 px-4">
         <div className="h-10 w-10 animate-spin rounded-full border-2 border-white/10 border-t-[#e2ff00]" />
         <div className="text-center">
-          <p className="text-sm font-medium text-white/70">Transcribing…</p>
+          <p className="text-sm font-medium text-white/70">{t('transcribing')}</p>
           {data?.file_name && (
             <p className="mt-1 max-w-xs truncate text-xs text-white/35">{data.file_name}</p>
           )}
@@ -243,9 +238,9 @@ export default function TranscriptionPage() {
   if (data.status === 'error' || !data.result) {
     return (
       <main className="flex flex-1 flex-col items-center justify-center gap-4 px-4">
-        <p className="text-red-400">Transcription failed.</p>
+        <p className="text-red-400">{t('failed')}</p>
         <button onClick={() => router.push('/')} className="text-sm text-white/50 underline hover:text-white/80">
-          Try again
+          {t('tryAgain')}
         </button>
       </main>
     )
@@ -267,15 +262,13 @@ export default function TranscriptionPage() {
     <main className="flex-1 px-4 py-10">
       <div className="mx-auto max-w-2xl">
 
-        {/* Back link — top */}
         <button
           onClick={() => router.push('/history')}
           className="mb-5 flex items-center gap-1 text-sm text-white/30 transition hover:text-white/60"
         >
-          ← Transcriptions
+          {t('backList')}
         </button>
 
-        {/* Header row */}
         <div className="mb-6 flex items-start justify-between gap-4">
           <div className="min-w-0">
             <h1 className="truncate text-lg font-semibold text-white">{data.file_name}</h1>
@@ -298,7 +291,7 @@ export default function TranscriptionPage() {
             onClick={copyAll}
             className="flex-shrink-0 border-white/15 text-white/60 hover:border-white/30 hover:text-white hover:bg-transparent"
           >
-            Copy all
+            {t('copyAll')}
           </Button>
         </div>
 
@@ -308,20 +301,20 @@ export default function TranscriptionPage() {
               value="clean"
               className="rounded-md px-4 py-1.5 text-sm data-active:bg-[#e2ff00]/10 data-active:text-[#e2ff00]"
             >
-              Text
+              {t('tabClean')}
             </TabsTrigger>
             <TabsTrigger
               value="detailed"
               className="rounded-md px-4 py-1.5 text-sm data-active:bg-[#e2ff00]/10 data-active:text-[#e2ff00]"
             >
-              Timestamps
+              {t('tabDetailed')}
             </TabsTrigger>
             {hasSummary && (
               <TabsTrigger
                 value="summary"
                 className="rounded-md px-4 py-1.5 text-sm data-active:bg-[#e2ff00]/10 data-active:text-[#e2ff00]"
               >
-                Summary
+                {t('tabSummary')}
               </TabsTrigger>
             )}
           </TabsList>
@@ -376,7 +369,7 @@ export default function TranscriptionPage() {
           {hasSummary && (
             <TabsContent value="summary">
               <div className="mb-4 flex items-center gap-3">
-                <span className="text-xs text-white/35">Language:</span>
+                <span className="text-xs text-white/35">{t('language')}</span>
                 <div className="flex gap-1">
                   {SUMMARY_LANGS.map(({ code, label }) => (
                     <button
@@ -401,20 +394,19 @@ export default function TranscriptionPage() {
               </div>
               <div className="rounded-xl border border-white/8 bg-white/[0.03] p-6">
                 {summaryLoading
-                  ? <p className="text-sm text-white/30 animate-pulse">Generating summary…</p>
+                  ? <p className="text-sm text-white/30 animate-pulse">{t('generatingSummary')}</p>
                   : renderMarkdown(displayedSummary!)}
               </div>
             </TabsContent>
           )}
         </Tabs>
 
-        {/* Back link — bottom */}
         <div className="mt-14 text-center">
           <button
             onClick={() => router.push('/history')}
             className="text-sm text-white/25 transition hover:text-white/55"
           >
-            ← Transcriptions
+            {t('backList')}
           </button>
         </div>
 
