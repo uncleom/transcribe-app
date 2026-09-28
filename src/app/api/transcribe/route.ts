@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient, createServerClient } from '@/lib/supabase/server'
 import { uploadAudio, startTranscription } from '@/lib/gladia'
-import { resolveGladiaKey } from '@/lib/api-keys'
+import { detectLanguage } from '@/lib/groq'
+import { resolveGladiaKey, resolveGroqKey } from '@/lib/api-keys'
 import {
   reserveCredits,
   refundCredits,
@@ -121,6 +122,14 @@ export async function POST(req: NextRequest) {
 
   const safeName = sanitizeFilename(file.name)
 
+  // --- Detect language (free Groq Whisper) to pick the best Gladia model ---
+  // Whisper accepts files up to 25 MB; larger files fall back to solaria-1.
+  const GROQ_WHISPER_MAX_BYTES = 25 * 1024 * 1024
+  const lang = file.size <= GROQ_WHISPER_MAX_BYTES
+    ? await detectLanguage(file, resolveGroqKey(user?.id))
+    : null
+  const model = lang === 'en' || lang === 'es' ? 'solaria-3' : undefined
+
   // --- Upload to Gladia and start transcription job ---
   let gladiaAudioUrl: string
   let resultUrl: string
@@ -129,8 +138,11 @@ export async function POST(req: NextRequest) {
     gladiaAudioUrl = await uploadAudio(file, safeName, gladiaKey)
     resultUrl = await startTranscription({
       audio_url: gladiaAudioUrl,
+      model,
       diarization: true,
-      language_config: { code_switching: true },
+      language_config: model === 'solaria-3'
+        ? { languages: lang ? [lang] : [], code_switching: false }
+        : { code_switching: true },
     }, gladiaKey)
   } catch (err) {
     console.error('Gladia error:', err)

@@ -2,7 +2,7 @@
 // Used by both the web API routes and the Telegram bot — any change here affects both.
 
 import { normaliseResult, transcribeFile, type GladiaPollingResult } from '@/lib/gladia'
-import { summariseTranscript } from '@/lib/groq'
+import { detectLanguage, summariseTranscript } from '@/lib/groq'
 import { resolveGladiaKey, resolveGroqKey } from '@/lib/api-keys'
 import type { TranscriptionResult, TranscriptionUtterance } from '@/types'
 
@@ -26,11 +26,19 @@ export async function finaliseGladiaResult(raw: GladiaPollingResult, userId?: st
 }
 
 /**
- * Step 1 (bot): full pipeline — upload file to Gladia, poll, normalise, summarise.
+ * Step 1 (bot): full pipeline — detect language (free Groq Whisper), pick the
+ * best Gladia model (solaria-3 for EN/ES, solaria-1 otherwise), upload, poll,
+ * normalise, summarise.
  */
 export async function processFile(file: File | Blob, fileName: string, userId?: string | null): Promise<TranscriptionResult> {
-  const result = await transcribeFile(file, fileName, resolveGladiaKey(userId))
-  await addSummary(result, resolveGroqKey(userId))
+  const gladiaKey = resolveGladiaKey(userId)
+  const groqKey = resolveGroqKey(userId)
+
+  const lang = await detectLanguage(file, groqKey)
+  const model = lang === 'en' || lang === 'es' ? 'solaria-3' : undefined
+
+  const result = await transcribeFile(file, fileName, gladiaKey, model, lang ?? undefined)
+  await addSummary(result, groqKey)
   return result
 }
 

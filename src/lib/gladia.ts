@@ -95,14 +95,19 @@ export async function pollTranscription(resultUrl: string, apiKey: string): Prom
 export async function transcribeFile(
   file: File | Blob,
   fileName: string,
-  apiKey: string
+  apiKey: string,
+  model?: string,
+  language?: string
 ): Promise<TranscriptionResult> {
   const audioUrl = await uploadAudio(file, fileName, apiKey)
 
   const request: GladiaTranscriptionRequest = {
     audio_url: audioUrl,
+    model,
     diarization: true,
-    language_config: { code_switching: true },
+    language_config: model === 'solaria-3'
+      ? { languages: language ? [language] : [], code_switching: false }
+      : { code_switching: true },
   }
 
   const resultUrl = await startTranscription(request, apiKey)

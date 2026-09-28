@@ -1,6 +1,43 @@
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions'
-// Groq moved Llama models to Enterprise-only (Aug 2026); self-serve replacement.
+const GROQ_WHISPER_URL = 'https://api.groq.com/openai/v1/audio/transcriptions'
 const SUMMARY_MODEL = 'openai/gpt-oss-120b'
+
+const WHISPER_TO_ISO: Record<string, string> = {
+  english: 'en',
+  spanish: 'es',
+  russian: 'ru',
+}
+
+/**
+ * Detect the spoken language of an audio file using Groq Whisper (free tier).
+ * Returns ISO 639-1 code ('en' | 'es' | 'ru') or null when detection fails.
+ * Never throws — caller treats null as "unknown language".
+ */
+export async function detectLanguage(
+  file: File | Blob,
+  apiKey: string = process.env.GROQ_API_KEY!
+): Promise<string | null> {
+  try {
+    const form = new FormData()
+    form.append('model', 'whisper-large-v3')
+    form.append('file', file, 'audio.bin')
+    form.append('response_format', 'verbose_json')
+
+    const res = await fetch(GROQ_WHISPER_URL, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${apiKey}` },
+      body: form,
+    })
+
+    if (!res.ok) return null
+
+    const data = await res.json()
+    const lang = String(data.language ?? '').toLowerCase()
+    return WHISPER_TO_ISO[lang] ?? null
+  } catch {
+    return null
+  }
+}
 
 interface GroqMessage {
   role: 'system' | 'user' | 'assistant'

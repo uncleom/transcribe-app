@@ -40,6 +40,7 @@ export interface TranscriptionResult {
 // Gladia API types
 export interface GladiaTranscriptionRequest {
   audio_url: string
+  model?: string
   diarization: boolean
   diarization_config?: {
     number_of_speakers?: number
