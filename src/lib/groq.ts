@@ -1,5 +1,6 @@
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions'
-const SUMMARY_MODEL = 'llama-3.3-70b-versatile'
+// Groq moved Llama models to Enterprise-only (Aug 2026); self-serve replacement.
+const SUMMARY_MODEL = 'openai/gpt-oss-120b'
 
 interface GroqMessage {
   role: 'system' | 'user' | 'assistant'
@@ -8,7 +9,7 @@ interface GroqMessage {
 
 interface GroqResponse {
   choices: Array<{
-    message: { content: string }
+    message: { content: string | null }
     finish_reason: string
   }>
 }
@@ -24,7 +25,9 @@ async function chat(messages: GroqMessage[], apiKey: string): Promise<string> {
       model: SUMMARY_MODEL,
       messages,
       temperature: 0.3,
-      max_tokens: 1024,
+      // gpt-oss spends completion budget on reasoning; 1024 often yields empty output.
+      max_tokens: 4096,
+      reasoning_effort: 'low',
     }),
   })
 
@@ -34,7 +37,11 @@ async function chat(messages: GroqMessage[], apiKey: string): Promise<string> {
   }
 
   const data: GroqResponse = await res.json()
-  return data.choices[0].message.content.trim()
+  const content = data.choices[0]?.message?.content?.trim()
+  if (!content) {
+    throw new Error('Groq API returned empty content')
+  }
+  return content
 }
 
 const LANG_NAMES: Record<string, string> = {
