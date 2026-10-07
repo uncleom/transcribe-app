@@ -184,7 +184,10 @@ async function handleFile(
     const info = await getFileInfo(fileRef.file_id)
     fileBuffer = await downloadFile(info.file_path)
   } catch (err) {
-    console.error('Telegram file download error:', err)
+    // readFile errors include the absolute path, and that path contains the bot token.
+    const raw = err instanceof Error ? err.message : ''
+    const message = raw.startsWith('Telegram file') ? raw : 'download failed'
+    console.error('Telegram file download error:', message)
     await sendMessage(chatId, 'Failed to download the file. Please try again.')
     return
   }

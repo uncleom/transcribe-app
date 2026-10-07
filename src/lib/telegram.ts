@@ -1,8 +1,14 @@
-// Telegram Bot API helpers
-// All requests use the bot token from TELEGRAM_BOT_TOKEN env var
+import { readFile } from 'node:fs/promises'
+import path from 'node:path'
 
-const API = `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}`
-const FILE_API = `https://api.telegram.org/file/bot${process.env.TELEGRAM_BOT_TOKEN}`
+// Telegram Bot API helpers.
+// TELEGRAM_BOT_API_URL empty means the public cloud. Production points at the
+// local Bot API on the docker network. The bot token stays in the env, never in git.
+
+const API_ROOT = (process.env.TELEGRAM_BOT_API_URL || 'https://api.telegram.org').replace(/\/$/, '')
+const API = `${API_ROOT}/bot${process.env.TELEGRAM_BOT_TOKEN}`
+const FILE_API = `${API_ROOT}/file/bot${process.env.TELEGRAM_BOT_TOKEN}`
+const LOCAL_FILES_ROOT = path.resolve(process.env.TELEGRAM_LOCAL_FILES_ROOT || '/var/lib/telegram-bot-api')
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -130,7 +136,23 @@ export async function getFileInfo(fileId: string): Promise<TelegramFileInfo> {
   return result as TelegramFileInfo
 }
 
+/** Local Bot API returns an absolute path. Refuse anything outside the shared directory. */
+function localFilePath(filePath: string): string {
+  const resolved = path.resolve(filePath)
+  if (resolved !== LOCAL_FILES_ROOT && !resolved.startsWith(LOCAL_FILES_ROOT + path.sep)) {
+    throw new Error('Telegram file is outside the allowed directory')
+  }
+  return resolved
+}
+
 export async function downloadFile(filePath: string): Promise<ArrayBuffer> {
+  // --local mode: getFile returns a path on the shared volume, not a URL.
+  if (filePath.startsWith('/')) {
+    const buf = await readFile(localFilePath(filePath))
+    const copy = new Uint8Array(buf.byteLength)
+    copy.set(buf)
+    return copy.buffer
+  }
   const res = await fetch(`${FILE_API}/${filePath}`)
   if (!res.ok) throw new Error(`Telegram file download failed: ${res.status}`)
   return res.arrayBuffer()
