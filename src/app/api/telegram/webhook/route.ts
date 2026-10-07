@@ -1,3 +1,4 @@
+import { readFile } from 'node:fs/promises'
 import { NextRequest } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
 import {
@@ -11,6 +12,7 @@ import {
   answerCallbackQuery,
   getFileInfo,
   downloadFile,
+  sendLocalVideo,
   type TelegramUpdate,
   type TelegramMessage,
   type TelegramCallbackQuery,
@@ -20,6 +22,7 @@ import { summariseTranscript, translateTranscript } from '@/lib/groq'
 import { resolveGroqKey } from '@/lib/api-keys'
 import type { TranscriptionResult } from '@/types'
 import { reserveCredits, adjustCredits, refundCredits, CreditsInsufficientError } from '@/lib/credits'
+import { downloadLink, extractHttpUrl, isOwner, LinkError } from '@/lib/link-download'
 
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://transcribe.om-dev.uk'
 const MAX_FILE_BYTES = 20 * 1024 * 1024 // 20 MB (Telegram getFile limit)
@@ -119,6 +122,19 @@ async function handleMessage(msg: TelegramMessage) {
     return
   }
 
+  const link = extractHttpUrl(text)
+  if (link) {
+    if (!isOwner(telegramId)) {
+      await sendMessage(chatId,
+        'Send me an audio or voice file and I\'ll transcribe it.\n\n' +
+        'Use /connect to link your account first.'
+      )
+      return
+    }
+    await handleLink(chatId, telegramId, msg.from?.language_code ?? 'en', link)
+    return
+  }
+
   // Unknown message
   await sendMessage(chatId,
     'Send me an audio or voice file and I\'ll transcribe it.\n\n' +
@@ -212,12 +228,127 @@ async function handleFile(
     throw err
   }
 
-  // Transcribe + summarise (shared pipeline from lib/transcription.ts)
+  const ext = fileRef.file_name?.split('.').pop() ?? 'ogg'
+  const file = new File([fileBuffer], `audio.${ext}`)
+  await completeTranscription(
+    chatId,
+    userId,
+    langCode,
+    fileRef.file_name ?? 'voice_message',
+    file,
+    `audio.${ext}`,
+    estimatedSeconds,
+  )
+}
+
+async function handleLink(
+  chatId: number,
+  telegramId: number,
+  langCode: string,
+  url: string,
+) {
+  const admin = createAdminClient()
+
+  const { data: account } = await admin
+    .from('telegram_accounts')
+    .select('supabase_user_id')
+    .eq('telegram_id', telegramId)
+    .single()
+
+  if (!account) {
+    await sendMessage(chatId,
+      `To use this bot, connect your account first:\n${SITE_URL}/connect-telegram`
+    )
+    return
+  }
+
+  const userId = account.supabase_user_id
+  const { data: profile } = await admin
+    .from('profiles')
+    .select('credits_seconds, is_unlimited')
+    .eq('id', userId)
+    .single()
+
+  if (!profile) return
+
+  if (!profile.is_unlimited && profile.credits_seconds <= 0) {
+    await sendMessage(chatId,
+      `You're out of credits. Top up at:\n${SITE_URL}/billing`
+    )
+    return
+  }
+
+  await sendMessage(chatId, 'Downloading the video.')
+  await sendChatAction(chatId, 'upload_video')
+
+  let media
+  try {
+    media = await downloadLink(url)
+  } catch (err) {
+    const code = err instanceof LinkError ? err.code : 'unavailable'
+    const text = code === 'blocked'
+      ? 'That address is on a private network. I won\'t download it.'
+      : code === 'too_long'
+        ? 'This is longer than 135 minutes. Gladia won\'t take it.'
+        : code === 'no_audio'
+          ? 'This video has no audio track.'
+          : 'Couldn\'t download this. If it\'s private, I don\'t have a login for it.'
+    const detail = err instanceof LinkError ? '' : (err instanceof Error ? err.name : '')
+    console.error('Link download failed:', code, detail)
+    await sendMessage(chatId, text)
+    return
+  }
+
+  try {
+    if (media.videoTooBig) {
+      await sendMessage(chatId, 'The video is over 2 GB, so it is not in the chat. Transcribing the audio.')
+    } else if (media.videoPath) {
+      try {
+        await sendLocalVideo(chatId, media.videoPath)
+      } catch {
+        await sendMessage(chatId, 'Could not send the video. Transcribing the audio.')
+      }
+    }
+
+    const audioBuf = await readFile(media.audioPath)
+    const estimatedSeconds = Math.min(Math.ceil(media.durationSeconds), 135 * 60)
+    const subject = { type: 'user' as const, id: userId }
+    try {
+      await reserveCredits(subject, estimatedSeconds)
+    } catch (err) {
+      if (err instanceof CreditsInsufficientError) {
+        await sendMessage(chatId,
+          `Not enough credits for this video. Top up at:\n${SITE_URL}/billing`
+        )
+        return
+      }
+      throw err
+    }
+
+    let host = 'link'
+    try { host = new URL(url).hostname } catch { /* keep the fallback */ }
+    const file = new File([new Uint8Array(audioBuf)], 'audio.m4a')
+    await completeTranscription(chatId, userId, langCode, host, file, 'audio.m4a', estimatedSeconds)
+  } finally {
+    await media.cleanup()
+  }
+}
+
+async function completeTranscription(
+  chatId: number,
+  userId: string,
+  langCode: string,
+  fileName: string,
+  audio: Blob,
+  audioName: string,
+  estimatedSeconds: number,
+) {
+  const admin = createAdminClient()
+  const subject = { type: 'user' as const, id: userId }
+
   let result
   try {
-    const ext = fileRef.file_name?.split('.').pop() ?? 'ogg'
-    const file = new File([fileBuffer], `audio.${ext}`)
-    result = await processFile(file, `audio.${ext}`, userId)
+    result = await processFile(audio, audioName, userId)
   } catch (err) {
     console.error('Transcription error:', err)
     await refundCredits(subject, estimatedSeconds)
@@ -225,15 +356,13 @@ async function handleFile(
     return
   }
 
-  // Adjust credits to actual duration
   await adjustCredits(subject, estimatedSeconds, Math.ceil(result.duration))
 
-  // Save to Supabase
   const { data: transcription } = await admin
     .from('transcriptions')
     .insert({
       user_id: userId,
-      file_name: fileRef.file_name ?? 'voice_message',
+      file_name: fileName,
       file_url: '',
       status: 'done',
       result,
@@ -245,8 +374,6 @@ async function handleFile(
     .single()
 
   const transcriptText = formatTranscriptText(result.utterances)
-
-  // Build inline keyboard
   const targetLang = getTargetLang(langCode)
   const transcriptLang = result.language?.split(/[+\-]/)[0]?.toLowerCase() ?? 'unknown'
   const showTranslate = transcriptLang !== targetLang && targetLang in { en: 1, es: 1, pt: 1, ru: 1 }

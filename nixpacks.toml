@@ -1,0 +1,8 @@
+# ffmpeg merges video and audio and extracts the speech track.
+# yt-dlp is fetched by scripts/fetch-yt-dlp.mjs so the binary stays out of git.
+
+[phases.setup]
+nixPkgs = ["ffmpeg"]
+
+[phases.install]
+cmds = ["npm ci", "node scripts/fetch-yt-dlp.mjs"]

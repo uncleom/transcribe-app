@@ -93,7 +93,7 @@ export async function sendMessage(
 
 export async function sendChatAction(
   chatId: number,
-  action: 'typing' | 'upload_document'
+  action: 'typing' | 'upload_document' | 'upload_video'
 ): Promise<void> {
   await call('sendChatAction', { chat_id: chatId, action })
 }
@@ -122,6 +122,30 @@ export async function sendDocument(
   const data = await res.json() as { ok: boolean; description?: string }
   if (!data.ok) {
     console.error('Telegram sendDocument failed:', data.description)
+  }
+}
+
+/** Send a video that already sits on the shared volume. The local Bot API reads it via file://. */
+export async function sendLocalVideo(chatId: number, filePath: string): Promise<void> {
+  const resolved = path.resolve(filePath)
+  const outgoing = path.resolve(LOCAL_FILES_ROOT, 'outgoing')
+  if (resolved !== outgoing && !resolved.startsWith(outgoing + path.sep)) {
+    throw new Error('Telegram file is outside the allowed directory')
+  }
+  const res = await fetch(`${API}/sendVideo`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      chat_id: chatId,
+      video: `file://${resolved}`,
+      supports_streaming: true,
+    }),
+    signal: AbortSignal.timeout(30 * 60 * 1000),
+  })
+  const data = await res.json() as { ok: boolean; description?: string }
+  if (!data.ok) {
+    console.error('Telegram sendVideo failed:', data.description)
+    throw new Error('Telegram file send failed')
   }
 }
 

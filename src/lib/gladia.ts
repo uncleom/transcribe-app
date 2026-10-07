@@ -9,7 +9,9 @@ export type { GladiaPollingResult }
 
 const BASE_URL = 'https://api.gladia.io/v2'
 const POLL_INTERVAL_MS = 5_000
-const MAX_POLL_ATTEMPTS = 60
+// 40 minutes. A recording near Gladia's 135 minute cap can sit in the queue
+// much longer than the old 5 minute limit.
+const MAX_POLL_ATTEMPTS = 480
 
 function headers(apiKey: string) {
   return {
