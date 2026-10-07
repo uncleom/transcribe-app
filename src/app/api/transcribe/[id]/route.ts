@@ -62,7 +62,8 @@ export async function GET(
       if (gladiaStatus.status === 'done') {
         const result = await finaliseGladiaResult(gladiaStatus, data.user_id)
 
-        await admin
+        // Only the request that moves processing → done may touch credits.
+        const { data: locked } = await admin
           .from('transcriptions')
           .update({
             status: 'done',
@@ -71,13 +72,17 @@ export async function GET(
             duration_seconds: result.duration,
           })
           .eq('id', id)
+          .eq('status', 'processing')
+          .select('id')
+          .maybeSingle()
 
-        // Adjust credits: reserved hint → actual Gladia duration
-        const reserved = data.reserved_seconds ?? Math.ceil(result.duration)
-        const actual = Math.ceil(result.duration)
-        await adjustCredits(subject, reserved, actual).catch((err) =>
-          console.error('adjustCredits failed:', err)
-        )
+        if (locked) {
+          const reserved = data.reserved_seconds ?? Math.ceil(result.duration)
+          const actual = Math.ceil(result.duration)
+          await adjustCredits(subject, reserved, actual).catch((err) =>
+            console.error('adjustCredits failed:', err)
+          )
+        }
 
         return NextResponse.json({
           id: data.id,
@@ -88,11 +93,16 @@ export async function GET(
       }
 
       if (gladiaStatus.status === 'error') {
-        await admin.from('transcriptions').update({ status: 'error' }).eq('id', id)
+        const { data: locked } = await admin
+          .from('transcriptions')
+          .update({ status: 'error' })
+          .eq('id', id)
+          .eq('status', 'processing')
+          .select('id')
+          .maybeSingle()
 
-        // Refund reserved seconds
         const reserved = data.reserved_seconds ?? 0
-        if (reserved > 0) {
+        if (locked && reserved > 0) {
           await refundCredits(subject, reserved).catch((err) =>
             console.error('refundCredits failed:', err)
           )

@@ -60,8 +60,21 @@ export async function startTranscription(
   return data.result_url as string
 }
 
+function assertGladiaResultUrl(resultUrl: string): void {
+  let url: URL
+  try {
+    url = new URL(resultUrl)
+  } catch {
+    throw new Error('Unexpected transcription result host')
+  }
+  if (url.protocol !== 'https:' || url.hostname !== 'api.gladia.io') {
+    throw new Error('Unexpected transcription result host')
+  }
+}
+
 /** Check status of a transcription job once — no retry loop */
 export async function checkTranscriptionStatus(resultUrl: string, apiKey: string): Promise<GladiaPollingResult> {
+  assertGladiaResultUrl(resultUrl)
   const res = await fetch(resultUrl, { headers: headers(apiKey) })
   if (!res.ok) {
     const text = await res.text()
@@ -75,6 +88,7 @@ export async function pollTranscription(resultUrl: string, apiKey: string): Prom
   for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt++) {
     await sleep(POLL_INTERVAL_MS)
 
+    assertGladiaResultUrl(resultUrl)
     const res = await fetch(resultUrl, { headers: headers(apiKey) })
 
     if (!res.ok) {

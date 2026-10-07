@@ -22,10 +22,25 @@ import { summariseTranscript, translateTranscript } from '@/lib/groq'
 import { resolveGroqKey } from '@/lib/api-keys'
 import type { TranscriptionResult } from '@/types'
 import { reserveCredits, adjustCredits, refundCredits, CreditsInsufficientError } from '@/lib/credits'
-import { downloadLink, extractHttpUrl, LinkError } from '@/lib/link-download'
+import { downloadLink, extractHttpUrl, quotedDuration, LinkError } from '@/lib/link-download'
 
 const SITE_URL = (process.env.NEXT_PUBLIC_APP_URL ?? '').replace(/\/$/, '')
 const MAX_FILE_BYTES = 20 * 1024 * 1024 // 20 MB (Telegram getFile limit)
+const LINK_GLOBAL = 2
+const linkUsers = new Set<number>()
+let linkActive = 0
+
+function takeLinkSlot(telegramId: number): boolean {
+  if (linkUsers.has(telegramId) || linkActive >= LINK_GLOBAL) return false
+  linkUsers.add(telegramId)
+  linkActive += 1
+  return true
+}
+
+function freeLinkSlot(telegramId: number): void {
+  if (!linkUsers.delete(telegramId)) return
+  linkActive -= 1
+}
 
 /** Strip markdown formatting for plain-text Telegram messages */
 function stripMarkdown(text: string): string {
@@ -264,67 +279,98 @@ async function handleLink(
 
   if (!profile) return
 
-  if (!profile.is_unlimited && profile.credits_seconds <= 0) {
-    await sendMessage(chatId,
-      `You're out of credits. Top up at:\n${SITE_URL}/billing`
-    )
+  if (!takeLinkSlot(telegramId)) {
+    await sendMessage(chatId, 'Already working on a link. Wait until it finishes.')
     return
   }
 
-  await sendMessage(chatId, 'Downloading the video.')
-  await sendChatAction(chatId, 'upload_video')
-
-  let media
+  let reservedSeconds = 0
   try {
-    media = await downloadLink(url)
-  } catch (err) {
-    const code = err instanceof LinkError ? err.code : 'unavailable'
-    const text = code === 'blocked'
-      ? 'That address is on a private network. I won\'t download it.'
-      : code === 'too_long'
-        ? 'This is longer than 135 minutes. Gladia won\'t take it.'
-        : code === 'no_audio'
-          ? 'This video has no audio track.'
-          : 'Couldn\'t download this. If it\'s private, I don\'t have a login for it.'
-    const detail = err instanceof LinkError ? '' : (err instanceof Error ? err.name : '')
-    console.error('Link download failed:', code, detail)
-    await sendMessage(chatId, text)
-    return
-  }
-
-  try {
-    if (media.videoTooBig) {
-      await sendMessage(chatId, 'The video is over 2 GB, so it is not in the chat. Transcribing the audio.')
-    } else if (media.videoPath) {
-      try {
-        await sendLocalVideo(chatId, media.videoPath)
-      } catch {
-        await sendMessage(chatId, 'Could not send the video. Transcribing the audio.')
-      }
+    if (!profile.is_unlimited && profile.credits_seconds <= 0) {
+      await sendMessage(chatId,
+        `You're out of credits. Top up at:\n${SITE_URL}/billing`
+      )
+      return
     }
 
-    const audioBuf = await readFile(media.audioPath)
-    const estimatedSeconds = Math.min(Math.ceil(media.durationSeconds), 135 * 60)
-    const subject = { type: 'user' as const, id: userId }
+    let quoted = 0
     try {
-      await reserveCredits(subject, estimatedSeconds)
+      quoted = Math.ceil(await quotedDuration(url))
     } catch (err) {
-      if (err instanceof CreditsInsufficientError) {
-        await sendMessage(chatId,
-          `Not enough credits for this video. Top up at:\n${SITE_URL}/billing`
-        )
-        return
-      }
-      throw err
+      await sendMessage(chatId, linkFailureText(err))
+      return
     }
+
+    const subject = { type: 'user' as const, id: userId }
+    if (!profile.is_unlimited && profile.credits_seconds < quoted) {
+      await sendMessage(chatId,
+        `Not enough credits for this video. Top up at:\n${SITE_URL}/billing`
+      )
+      return
+    }
+    if (!profile.is_unlimited) {
+      try {
+        await reserveCredits(subject, quoted)
+        reservedSeconds = quoted
+      } catch (err) {
+        if (err instanceof CreditsInsufficientError) {
+          await sendMessage(chatId,
+            `Not enough credits for this video. Top up at:\n${SITE_URL}/billing`
+          )
+          return
+        }
+        throw err
+      }
+    }
+
+    await sendMessage(chatId, 'Downloading the video.')
+    await sendChatAction(chatId, 'upload_video')
+
+    let media
+    try {
+      media = await downloadLink(url)
+    } catch (err) {
+      if (reservedSeconds > 0) await refundCredits(subject, reservedSeconds)
+      const code = err instanceof LinkError ? err.code : 'unavailable'
+      const detail = err instanceof LinkError ? '' : (err instanceof Error ? err.name : '')
+      console.error('Link download failed:', code, detail)
+      await sendMessage(chatId, linkFailureText(err))
+      return
+    }
+
+    try {
+      if (media.videoTooBig) {
+        await sendMessage(chatId, 'The video is over 2 GB, so it is not in the chat. Transcribing the audio.')
+      } else if (media.videoPath) {
+        try {
+          await sendLocalVideo(chatId, media.videoPath)
+        } catch {
+          await sendMessage(chatId, 'Could not send the video. Transcribing the audio.')
+        }
+      }
+
+      const audioBuf = await readFile(media.audioPath)
+      const estimatedSeconds = reservedSeconds || Math.min(Math.ceil(media.durationSeconds), 135 * 60)
 
     let host = 'link'
     try { host = new URL(url).hostname } catch { /* keep the fallback */ }
     const file = new File([new Uint8Array(audioBuf)], 'audio.m4a')
     await completeTranscription(chatId, userId, langCode, host, file, 'audio.m4a', estimatedSeconds)
+    } finally {
+      await media.cleanup()
+    }
   } finally {
-    await media.cleanup()
+    freeLinkSlot(telegramId)
   }
+}
+
+function linkFailureText(err: unknown): string {
+  const code = err instanceof LinkError ? err.code : 'unavailable'
+  if (code === 'blocked') return 'That address is on a private network. I won\'t download it.'
+  if (code === 'too_long') return 'This is longer than 135 minutes. Gladia won\'t take it.'
+  if (code === 'unknown_length') return 'Couldn\'t read how long this is, so I didn\'t download it.'
+  if (code === 'no_audio') return 'This video has no audio track.'
+  return 'Couldn\'t download this. If it\'s private, I don\'t have a login for it.'
 }
 
 async function completeTranscription(

@@ -10,11 +10,10 @@ export async function GET(request: Request) {
     await supabase.auth.exchangeCodeForSession(code)
   }
 
-  // Behind a reverse proxy (Traefik/nginx), request.url contains the internal
-  // address (e.g. localhost:3000). Use x-forwarded-host when available.
-  const fwdHost = request.headers.get('x-forwarded-host')
-  const fwdProto = (request.headers.get('x-forwarded-proto') ?? 'https').split(',')[0].trim()
-  const base = fwdHost ? `${fwdProto}://${fwdHost}` : origin
+  // Do not trust x-forwarded-host. A client can send it, and the redirect
+  // would leave the site. NEXT_PUBLIC_APP_URL is the address of this deploy.
+  const configured = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '')
+  const base = configured || origin
 
   return NextResponse.redirect(`${base}/`)
 }

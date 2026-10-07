@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient, createServerClient } from '@/lib/supabase/server'
 import { summariseTranscript } from '@/lib/groq'
+import { resolveGroqKey } from '@/lib/api-keys'
 import type { TranscriptionResult } from '@/types'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -49,7 +50,7 @@ export async function POST(
   }
 
   try {
-    const summary = await summariseTranscript(result.full_transcript, language)
+    const summary = await summariseTranscript(result.full_transcript, language, resolveGroqKey(data.user_id))
     return NextResponse.json({ summary })
   } catch (err) {
     console.error('Summary regeneration error:', err)

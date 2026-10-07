@@ -27,7 +27,7 @@ PRIVATE.addAddress('::', 'ipv6')
 PRIVATE.addSubnet('fc00::', 7, 'ipv6')
 PRIVATE.addSubnet('fe80::', 10, 'ipv6')
 
-export type LinkFailure = 'blocked' | 'too_long' | 'unavailable' | 'no_audio'
+export type LinkFailure = 'blocked' | 'too_long' | 'unknown_length' | 'unavailable' | 'no_audio'
 
 export class LinkError extends Error {
   code: LinkFailure
@@ -168,6 +168,15 @@ async function probeFile(file: string): Promise<number | null> {
 
 function tooBig(stderr: string): boolean {
   return /larger than max-filesize|File is larger/i.test(stderr)
+}
+
+/** Ask the site for the length. No media is downloaded. */
+export async function quotedDuration(rawUrl: string): Promise<number> {
+  const url = await assertPublicHttpUrl(rawUrl)
+  const probed = await probeUrl(url)
+  if (probed == null) throw new LinkError('unknown_length')
+  if (probed > GLADIA_MAX_SECONDS) throw new LinkError('too_long')
+  return probed
 }
 
 export async function downloadLink(rawUrl: string): Promise<LinkMedia> {

@@ -16,8 +16,7 @@ function forward(signal) {
 }
 process.on('SIGTERM', () => forward('SIGTERM'))
 process.on('SIGINT', () => forward('SIGINT'))
-child.on('exit', (code, signal) => {
-  if (signal) process.kill(process.pid, signal)
+child.on('exit', (code) => {
   process.exit(code ?? 0)
 })
 
