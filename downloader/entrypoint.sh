@@ -22,4 +22,4 @@ else
   echo "egress filter skipped"
 fi
 cd /app
-exec setpriv --reuid=node --regid=node --init-groups node /usr/local/bin/node server.mjs
+exec setpriv --reuid=node --regid=node --init-groups -- /usr/local/bin/node server.mjs
