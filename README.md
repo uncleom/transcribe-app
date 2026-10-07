@@ -153,7 +153,7 @@ See `.env.example` for the full list. Required:
 | `TELEGRAM_BOT_TOKEN` | From @BotFather |
 | `TELEGRAM_SECRET_TOKEN` | Random secret for webhook validation (`openssl rand -hex 32`) |
 | `TELEGRAM_BOT_API_URL` | Optional. Empty uses `https://api.telegram.org`. Local server, for files up to 2 GB: `http://telegram-bot-api:8081` |
-| `TELEGRAM_LOCAL_FILES_ROOT` | Directory mounted from the local Bot API. Default `/var/lib/telegram-bot-api` |
+| `TELEGRAM_LOCAL_FILES_ROOT` | Directory mounted from the local Bot API. Default `/var/lib/telegram-bot-api`. A file is deleted after it is read. The bot login files in that directory are kept |
 
 ### Database
 

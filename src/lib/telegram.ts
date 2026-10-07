@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises'
+import { readFile, rmdir, unlink } from 'node:fs/promises'
 import path from 'node:path'
 
 // Telegram Bot API helpers.
@@ -145,12 +145,36 @@ function localFilePath(filePath: string): string {
   return resolved
 }
 
+/** Drop the file the local Bot API saved. Keep the bot directory: td.binlog is the login. */
+async function removeLocalTelegramFile(resolved: string): Promise<void> {
+  await unlink(resolved)
+  const relative = path.relative(LOCAL_FILES_ROOT, resolved)
+  const top = relative.split(path.sep)[0]
+  if (!top || top === '..') return
+  const tokenDir = path.resolve(LOCAL_FILES_ROOT, top)
+  let dir = path.dirname(resolved)
+  while (dir.startsWith(tokenDir + path.sep)) {
+    try {
+      await rmdir(dir)
+    } catch {
+      break
+    }
+    dir = path.dirname(dir)
+  }
+}
+
 export async function downloadFile(filePath: string): Promise<ArrayBuffer> {
   // --local mode: getFile returns a path on the shared volume, not a URL.
   if (filePath.startsWith('/')) {
-    const buf = await readFile(localFilePath(filePath))
+    const resolved = localFilePath(filePath)
+    const buf = await readFile(resolved)
     const copy = new Uint8Array(buf.byteLength)
     copy.set(buf)
+    try {
+      await removeLocalTelegramFile(resolved)
+    } catch {
+      console.error('Telegram local file delete failed')
+    }
     return copy.buffer
   }
   const res = await fetch(`${FILE_API}/${filePath}`)
