@@ -22,9 +22,9 @@ import { summariseTranscript, translateTranscript } from '@/lib/groq'
 import { resolveGroqKey } from '@/lib/api-keys'
 import type { TranscriptionResult } from '@/types'
 import { reserveCredits, adjustCredits, refundCredits, CreditsInsufficientError } from '@/lib/credits'
-import { downloadLink, extractHttpUrl, isOwner, LinkError } from '@/lib/link-download'
+import { downloadLink, extractHttpUrl, LinkError } from '@/lib/link-download'
 
-const SITE_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://transcribe.om-dev.uk'
+const SITE_URL = (process.env.NEXT_PUBLIC_APP_URL ?? '').replace(/\/$/, '')
 const MAX_FILE_BYTES = 20 * 1024 * 1024 // 20 MB (Telegram getFile limit)
 
 /** Strip markdown formatting for plain-text Telegram messages */
@@ -124,13 +124,6 @@ async function handleMessage(msg: TelegramMessage) {
 
   const link = extractHttpUrl(text)
   if (link) {
-    if (!isOwner(telegramId)) {
-      await sendMessage(chatId,
-        'Send me an audio or voice file and I\'ll transcribe it.\n\n' +
-        'Use /connect to link your account first.'
-      )
-      return
-    }
     await handleLink(chatId, telegramId, msg.from?.language_code ?? 'en', link)
     return
   }

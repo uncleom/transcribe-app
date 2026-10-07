@@ -30,6 +30,10 @@ cp .env.example .env.local
 | `GLADIA_API_KEY` | https://app.gladia.io → API keys (есть free tier 10h/мес) |
 | `GROQ_API_KEY` | https://console.groq.com → API keys (free tier есть) |
 | `NEXT_PUBLIC_APP_URL` | локально: `http://localhost:3000`, prod: ваш домен |
+| `TELEGRAM_BOT_TOKEN` | @BotFather → /newbot, токен вашего бота |
+| `TELEGRAM_SECRET_TOKEN` | `openssl rand -hex 32` |
+| `TELEGRAM_BOT_USERNAME` | имя бота без `@`. Ссылка «подключить» ведёт на него |
+| `OWNER_USER_ID` | необязательно. UUID вашего пользователя в Supabase, если личные ключи Gladia/Groq должны идти только ему. Остальные берут `*_PUBLIC`, а если их нет — те же ключи |
 
 ## 3. Supabase
 

@@ -21,7 +21,7 @@ A full-stack PWA that transcribes audio and video files with automatic speaker d
 - **Credit system** — anonymous users get 3 min free (by IP); registered users get 20 min on signup; atomically tracked in Postgres
 - **Installable PWA** — works offline shell, install prompt on Android and iOS guidance banner
 - **Google OAuth** — one-click sign-in via Supabase Auth
-- **Telegram bot** — forward any voice message or audio file directly to @TranscriboAppBot and get the transcript in the chat; linked to the same account and credits as the web app
+- **Telegram bot** — a connected account sends a voice message, an audio file, or a public link. The bot transcribes it on the same credits as the web app. `profiles.is_unlimited` skips the charge. A link is downloaded with yt-dlp, the video is sent back when it is under 2 GB, and the file is deleted. Gladia stops at 135 minutes. Private-network addresses are refused
 
 ---
 
@@ -154,7 +154,9 @@ See `.env.example` for the full list. Required:
 | `TELEGRAM_SECRET_TOKEN` | Random secret for webhook validation (`openssl rand -hex 32`) |
 | `TELEGRAM_BOT_API_URL` | Optional. Empty uses `https://api.telegram.org`. Local server, for files up to 2 GB: `http://telegram-bot-api:8081` |
 | `TELEGRAM_LOCAL_FILES_ROOT` | Directory mounted from the local Bot API. Default `/var/lib/telegram-bot-api`. A file is deleted after it is read. The bot login files in that directory are kept |
-| `TELEGRAM_OWNER_ID` | Telegram user id allowed to send a link. The bot downloads it with yt-dlp, sends the video back when it is under 2 GB, transcribes the audio, and deletes the download. Gladia stops at 135 minutes. Private-network addresses are refused |
+| `NEXT_PUBLIC_APP_URL` | Your site URL. The bot uses it in account links. No default |
+| `TELEGRAM_BOT_USERNAME` | Your bot username, without `@`. The connect button opens `t.me/<this>` |
+| `OWNER_USER_ID` | Optional Supabase user id. That account uses `GLADIA_API_KEY` and `GROQ_API_KEY`. Everyone else uses the `*_PUBLIC` keys when those are set. Not a Telegram allowlist |
 
 ### Database
 

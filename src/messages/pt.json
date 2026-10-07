@@ -106,7 +106,7 @@
     "connected": "Conectado",
     "disconnect": "Desconectar",
     "openLinkHint": "Abra o link abaixo no Telegram para concluir a conexão:",
-    "openBot": "Abrir @TranscriboAppBot →",
+    "openBot": "Abrir no Telegram →",
     "expires": "O link expira em 15 minutos",
     "generating": "Gerando link…",
     "linkAccount": "Vincular conta do Telegram"

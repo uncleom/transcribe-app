@@ -2,12 +2,16 @@ import { NextResponse } from 'next/server'
 import { createServerClient, createAdminClient } from '@/lib/supabase/server'
 import { randomBytes } from 'crypto'
 
-const BOT_USERNAME = 'TranscriboAppBot'
+const BOT_USERNAME = process.env.TELEGRAM_BOT_USERNAME?.replace(/^@/, '').trim()
 
 export async function POST() {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  if (!BOT_USERNAME) {
+    return NextResponse.json({ error: 'Telegram bot username is not configured' }, { status: 500 })
+  }
 
   const admin = createAdminClient()
 

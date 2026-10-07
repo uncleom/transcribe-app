@@ -45,11 +45,6 @@ export interface LinkMedia {
   cleanup: () => Promise<void>
 }
 
-export function isOwner(telegramId: number): boolean {
-  const id = process.env.TELEGRAM_OWNER_ID?.trim()
-  return !!id && String(telegramId) === id
-}
-
 export function extractHttpUrl(text: string): string | null {
   const match = text.match(/https?:\/\/[^\s<>"']+/i)
   if (!match) return null
