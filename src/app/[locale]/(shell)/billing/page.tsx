@@ -77,14 +77,6 @@ export default async function BillingPage({
           )}
         </div>
 
-        <div className="mb-6 rounded-2xl border border-white/[0.08] bg-white/[0.02] p-8 text-center">
-          <p className="text-lg font-semibold text-white">{t('topUpTitle')}</p>
-          <p className="mt-2 text-sm text-white/45">{t('topUpDesc')}</p>
-          <p className="mt-6 inline-block rounded-full border border-white/10 px-4 py-1.5 text-xs text-white/35">
-            {t('comingSoon')}
-          </p>
-        </div>
-
         <div className="mb-6 rounded-2xl border border-white/[0.08] bg-white/[0.02] p-6">
           <div className="flex items-start justify-between gap-4">
             <div>

@@ -37,7 +37,7 @@
     "uploadFailed": "Falha no envio ({status})",
     "notEnoughCredits": "Créditos insuficientes para este arquivo",
     "notEnoughCreditsWithDuration": "Créditos insuficientes para este arquivo ({duration}).",
-    "topUp": "Recarregar créditos →",
+    "topUp": "Ver seus minutos →",
     "transcribe": "Transcrever",
     "tryAgain": "Tentar de novo"
   },

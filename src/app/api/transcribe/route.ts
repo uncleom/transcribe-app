@@ -9,6 +9,7 @@ import {
   getClientIp,
   type CreditSubject,
 } from '@/lib/credits'
+import { probeMediaDuration } from '@/lib/media-duration'
 
 const ALLOWED_MIME_TYPES = new Set([
   'audio/mpeg',
@@ -87,36 +88,53 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'File exceeds 500 MB limit' }, { status: 413 })
   }
 
-  // --- Parse duration hint ---
-  const durationHintRaw = formData.get('duration_hint')
-  let durationHint = 60 // conservative fallback
-  if (durationHintRaw !== null) {
-    const parsed = Math.round(Number(durationHintRaw))
-    if (Number.isFinite(parsed) && parsed > 0 && parsed <= 14400) {
-      durationHint = parsed
-    }
-  }
-
-  // --- Resolve identity ---
+  // Length comes from the file. The browser hint is not used.
+  const admin = createAdminClient()
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
+
+  let unlimited = false
+  if (user) {
+    const { data: profile } = await admin
+      .from('profiles')
+      .select('is_unlimited')
+      .eq('id', user.id)
+      .single()
+    unlimited = profile?.is_unlimited === true
+  }
+
+  const durationSeconds = await probeMediaDuration(new Uint8Array(await file.arrayBuffer()))
+  if (durationSeconds != null && durationSeconds > 135 * 60) {
+    return NextResponse.json(
+      { error: 'This is longer than 135 minutes. Gladia will not take it.' },
+      { status: 422 }
+    )
+  }
+  if (durationSeconds == null && !unlimited) {
+    return NextResponse.json(
+      { error: 'Could not read how long this file is.' },
+      { status: 422 }
+    )
+  }
 
   const subject: CreditSubject = user
     ? { type: 'user', id: user.id }
     : { type: 'anon', ip: getClientIp(req) }
+  const reservedSeconds = durationSeconds == null ? 0 : Math.ceil(durationSeconds)
 
-  // --- Reserve credits ---
-  try {
-    await reserveCredits(subject, durationHint)
-  } catch (err) {
-    if (err instanceof CreditsInsufficientError) {
-      return NextResponse.json(
-        { error: 'Insufficient credits', code: 'credits_insufficient' },
-        { status: 402 }
-      )
+  if (!unlimited && reservedSeconds > 0) {
+    try {
+      await reserveCredits(subject, reservedSeconds)
+    } catch (err) {
+      if (err instanceof CreditsInsufficientError) {
+        return NextResponse.json(
+          { error: 'Insufficient credits', code: 'credits_insufficient' },
+          { status: 402 }
+        )
+      }
+      console.error('Reserve credits error:', err)
+      return NextResponse.json({ error: 'Failed to reserve credits' }, { status: 500 })
     }
-    console.error('Reserve credits error:', err)
-    return NextResponse.json({ error: 'Failed to reserve credits' }, { status: 500 })
   }
 
   const safeName = sanitizeFilename(file.name)
@@ -134,12 +152,11 @@ export async function POST(req: NextRequest) {
     }, gladiaKey)
   } catch (err) {
     console.error('Gladia error:', err)
-    await refundCredits(subject, durationHint)
+    if (!unlimited && reservedSeconds > 0) await refundCredits(subject, reservedSeconds)
     return NextResponse.json({ error: 'Failed to start transcription job' }, { status: 502 })
   }
 
   // --- Create transcription record ---
-  const admin = createAdminClient()
   const { data: transcription, error: insertError } = await admin
     .from('transcriptions')
     .insert({
@@ -147,7 +164,7 @@ export async function POST(req: NextRequest) {
       file_url: gladiaAudioUrl,
       status: 'processing',
       gladia_result_url: resultUrl,
-      reserved_seconds: durationHint,
+      reserved_seconds: reservedSeconds,
       ...(user ? { user_id: user.id } : {}),
     })
     .select('id')
@@ -155,7 +172,7 @@ export async function POST(req: NextRequest) {
 
   if (insertError || !transcription) {
     console.error('DB insert error:', insertError)
-    await refundCredits(subject, durationHint)
+    if (!unlimited && reservedSeconds > 0) await refundCredits(subject, reservedSeconds)
     return NextResponse.json({ error: 'Failed to create transcription record' }, { status: 500 })
   }
 

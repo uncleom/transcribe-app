@@ -195,7 +195,7 @@ async function handleFile(
 
   if (!profile.is_unlimited && profile.credits_seconds <= 0) {
     await sendMessage(chatId,
-      `You're out of credits. Top up at:\n${SITE_URL}/billing`
+      `You're out of free minutes. See what's left:\n${SITE_URL}/billing`
     )
     return
   }
@@ -229,7 +229,7 @@ async function handleFile(
   } catch (err) {
     if (err instanceof CreditsInsufficientError) {
       await sendMessage(chatId,
-        `Not enough credits for this file. Top up at:\n${SITE_URL}/billing`
+        `Not enough free minutes for this file. See what's left:\n${SITE_URL}/billing`
       )
       return
     }
@@ -288,7 +288,7 @@ async function handleLink(
   try {
     if (!profile.is_unlimited && profile.credits_seconds <= 0) {
       await sendMessage(chatId,
-        `You're out of credits. Top up at:\n${SITE_URL}/billing`
+        `You're out of free minutes. See what's left:\n${SITE_URL}/billing`
       )
       return
     }
@@ -297,14 +297,17 @@ async function handleLink(
     try {
       quoted = Math.ceil(await quotedDuration(url))
     } catch (err) {
-      await sendMessage(chatId, linkFailureText(err))
-      return
+      const unknown = err instanceof LinkError && err.code === 'unknown_length'
+      if (!(profile.is_unlimited && unknown)) {
+        await sendMessage(chatId, linkFailureText(err))
+        return
+      }
     }
 
     const subject = { type: 'user' as const, id: userId }
     if (!profile.is_unlimited && profile.credits_seconds < quoted) {
       await sendMessage(chatId,
-        `Not enough credits for this video. Top up at:\n${SITE_URL}/billing`
+        `Not enough free minutes for this video. See what's left:\n${SITE_URL}/billing`
       )
       return
     }
@@ -315,7 +318,7 @@ async function handleLink(
       } catch (err) {
         if (err instanceof CreditsInsufficientError) {
           await sendMessage(chatId,
-            `Not enough credits for this video. Top up at:\n${SITE_URL}/billing`
+            `Not enough free minutes for this video. See what's left:\n${SITE_URL}/billing`
           )
           return
         }

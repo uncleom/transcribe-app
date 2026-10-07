@@ -37,7 +37,7 @@
     "uploadFailed": "Error al subir ({status})",
     "notEnoughCredits": "No hay créditos suficientes para este archivo",
     "notEnoughCreditsWithDuration": "No hay créditos suficientes para este archivo ({duration}).",
-    "topUp": "Recargar créditos →",
+    "topUp": "Ver tus minutos →",
     "transcribe": "Transcribir",
     "tryAgain": "Reintentar"
   },

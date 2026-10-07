@@ -37,7 +37,7 @@
     "uploadFailed": "Upload failed ({status})",
     "notEnoughCredits": "Not enough credits for this file",
     "notEnoughCreditsWithDuration": "Not enough credits for this file ({duration}).",
-    "topUp": "Top up credits →",
+    "topUp": "See your minutes →",
     "transcribe": "Transcribe",
     "tryAgain": "Try again"
   },

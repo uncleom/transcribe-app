@@ -91,9 +91,6 @@ export default function UploadZone({ onUploadComplete, initialFile }: Props) {
 
     const form = new FormData()
     form.append('file', file)
-    if (durationSecs != null) {
-      form.append('duration_hint', String(Math.ceil(durationSecs)))
-    }
 
     const xhr = new XMLHttpRequest()
 
