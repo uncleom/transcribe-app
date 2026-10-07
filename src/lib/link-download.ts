@@ -170,19 +170,98 @@ function tooBig(stderr: string): boolean {
   return /larger than max-filesize|File is larger/i.test(stderr)
 }
 
+function downloaderUrl(): string {
+  return (process.env.DOWNLOADER_URL || '').replace(/\/$/, '')
+}
+
+async function askDownloader(pathname: string, url: string, timeoutMs: number): Promise<Record<string, unknown>> {
+  const root = downloaderUrl()
+  const token = process.env.DOWNLOADER_TOKEN || ''
+  const res = await fetch(`${root}${pathname}`, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ url }),
+    signal: AbortSignal.timeout(timeoutMs),
+  })
+  let data: Record<string, unknown> = {}
+  try {
+    data = await res.json() as Record<string, unknown>
+  } catch {
+    data = {}
+  }
+  if (!res.ok) {
+    const code = data.code
+    if (
+      code === 'blocked' || code === 'too_long' || code === 'unknown_length'
+      || code === 'unavailable' || code === 'no_audio'
+    ) {
+      throw new LinkError(code)
+    }
+    throw new LinkError('unavailable')
+  }
+  return data
+}
+
+function safeName(value: unknown): string | null {
+  if (typeof value !== 'string' || !/^[a-z0-9._-]+$/i.test(value)) return null
+  return value
+}
+
 /** Ask the site for the length. No media is downloaded. */
 export async function quotedDuration(rawUrl: string): Promise<number> {
   const url = await assertPublicHttpUrl(rawUrl)
+  if (downloaderUrl()) {
+    const data = await askDownloader('/probe', url, 70_000)
+    const probed = typeof data.durationSeconds === 'number' ? data.durationSeconds : null
+    if (probed == null) throw new LinkError('unknown_length')
+    if (probed > GLADIA_MAX_SECONDS) throw new LinkError('too_long')
+    return probed
+  }
   const probed = await probeUrl(url)
   if (probed == null) throw new LinkError('unknown_length')
   if (probed > GLADIA_MAX_SECONDS) throw new LinkError('too_long')
   return probed
 }
 
+async function fromDownloader(url: string): Promise<LinkMedia> {
+  const data = await askDownloader('/download', url, 21 * 60 * 1000)
+  const id = typeof data.id === 'string' ? data.id : ''
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+    throw new LinkError('unavailable')
+  }
+  const dir = path.resolve(OUTGOING, id)
+  if (dir !== path.join(OUTGOING, id)) throw new LinkError('unavailable')
+  const audioName = safeName(data.audio)
+  const videoName = data.video == null ? null : safeName(data.video)
+  if (!audioName || (data.video != null && !videoName)) throw new LinkError('unavailable')
+  const audioPath = path.join(dir, audioName)
+  const videoPath = videoName ? path.join(dir, videoName) : null
+  const cleanup = () => rm(dir, { recursive: true, force: true })
+  try {
+    await stat(audioPath)
+  } catch {
+    await cleanup()
+    throw new LinkError('unavailable')
+  }
+  const durationSeconds = typeof data.durationSeconds === 'number' && data.durationSeconds > 0
+    ? data.durationSeconds
+    : 60
+  return {
+    videoPath,
+    audioPath,
+    durationSeconds,
+    videoTooBig: data.videoTooBig === true,
+    cleanup,
+  }
+}
+
 export async function downloadLink(rawUrl: string): Promise<LinkMedia> {
   const url = await assertPublicHttpUrl(rawUrl)
+  if (downloaderUrl()) return fromDownloader(url)
   await mkdir(OUTGOING, { recursive: true, mode: 0o755 })
-  await chmod(OUTGOING, 0o755)
   const dir = path.join(OUTGOING, randomUUID())
   await mkdir(dir, { mode: 0o755 })
 

@@ -26,3 +26,5 @@ jobs:
           NEXT_PUBLIC_APP_URL: http://localhost:3000
 
       - run: node scripts/check-credit-lock.mjs
+
+      - run: node downloader/private-net.test.mjs

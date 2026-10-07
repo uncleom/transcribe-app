@@ -157,6 +157,8 @@ See `.env.example` for the full list. Required:
 | `NEXT_PUBLIC_APP_URL` | Your site URL. The bot uses it in account links. No default |
 | `TELEGRAM_BOT_USERNAME` | Your bot username, without `@`. The connect button opens `t.me/<this>` |
 | `OWNER_USER_ID` | Optional Supabase user id. That account uses `GLADIA_API_KEY` and `GROQ_API_KEY`. Everyone else uses the `*_PUBLIC` keys when those are set. Not a Telegram allowlist |
+| `DOWNLOADER_URL` | Optional. Internal URL of the download service, for example `http://transcribe-downloader:8090`. When set, a link is fetched there instead of inside this app |
+| `DOWNLOADER_TOKEN` | Shared secret for that service. The service has no database or provider keys, and it refuses private-network addresses |
 
 ### Database
 
