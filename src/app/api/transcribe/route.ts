@@ -105,8 +105,12 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const announced = Number(req.headers.get('content-length'))
-  if (!Number.isFinite(announced) || announced < 0 || announced > MAX_FILE_SIZE + 1024 * 1024) {
+  const rawLength = req.headers.get('content-length')
+  if (rawLength == null || rawLength.trim() === '') {
+    return NextResponse.json({ error: 'Content-Length is required' }, { status: 411 })
+  }
+  const announced = Number(rawLength)
+  if (!Number.isInteger(announced) || announced < 0 || announced > MAX_FILE_SIZE + 1024 * 1024) {
     return NextResponse.json({ error: 'File exceeds 100 MB limit' }, { status: 413 })
   }
 

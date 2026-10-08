@@ -240,18 +240,20 @@ async function handleFile(
     : 300
 
   const subject = { type: 'user' as const, id: userId }
+  const charge = profile.is_unlimited !== true
 
-  // Reserve credits
-  try {
-    await reserveCredits(subject, estimatedSeconds)
-  } catch (err) {
-    if (err instanceof CreditsInsufficientError) {
-      await sendMessage(chatId,
-        `Not enough free minutes for this file. See what's left:\n${SITE_URL}/billing`
-      )
-      return
+  if (charge) {
+    try {
+      await reserveCredits(subject, estimatedSeconds)
+    } catch (err) {
+      if (err instanceof CreditsInsufficientError) {
+        await sendMessage(chatId,
+          `Not enough free minutes for this file. See what's left:\n${SITE_URL}/billing`
+        )
+        return
+      }
+      throw err
     }
-    throw err
   }
 
   const ext = fileRef.file_name?.split('.').pop() ?? 'ogg'
@@ -264,6 +266,7 @@ async function handleFile(
     file,
     `audio.${ext}`,
     estimatedSeconds,
+    charge,
   )
 }
 
