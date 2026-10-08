@@ -107,6 +107,52 @@ function tooBig(stderr) {
   return /larger than max-filesize|File is larger/i.test(stderr)
 }
 
+async function videoPicture(file) {
+  const result = await run('ffprobe', [
+    '-v', 'error',
+    '-select_streams', 'v:0',
+    '-show_entries', 'stream=codec_name,pix_fmt',
+    '-of', 'json',
+    file,
+  ], 30_000)
+  if (result.code !== 0) return { codec: '', pix: '' }
+  try {
+    const stream = JSON.parse(result.stdout).streams?.[0] ?? {}
+    return { codec: stream.codec_name || '', pix: stream.pix_fmt || '' }
+  } catch {
+    return { codec: '', pix: '' }
+  }
+}
+
+function telegramCanPlay(codec, pix) {
+  return codec === 'h264' && (pix === 'yuv420p' || pix === 'yuvj420p')
+}
+
+async function h264IfNeeded(videoPath, dir) {
+  const { codec, pix } = await videoPicture(videoPath)
+  if (telegramCanPlay(codec, pix)) {
+    console.log(`video keep ${codec} ${pix}`)
+    return path.basename(videoPath)
+  }
+  console.log(`video transcode ${codec || 'unknown'} ${pix || 'unknown'}`)
+  const out = path.join(dir, 'video-h264.mp4')
+  const encoded = await run('ffmpeg', [
+    '-y', '-i', videoPath,
+    '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-preset', 'veryfast', '-crf', '23',
+    '-c:a', 'aac', '-ac', '2', '-b:a', '128k',
+    '-movflags', '+faststart',
+    '-vf', 'scale=trunc(iw/2)*2:trunc(ih/2)*2',
+    out,
+  ], 20 * 60 * 1000)
+  if (encoded.code !== 0) {
+    console.log('video transcode failed')
+    return path.basename(videoPath)
+  }
+  await chmod(out, 0o644)
+  if (path.resolve(out) !== path.resolve(videoPath)) await rm(videoPath, { force: true })
+  return 'video-h264.mp4'
+}
+
 async function readBody(req) {
   const chunks = []
   let size = 0
@@ -169,12 +215,14 @@ async function download(url) {
         return { status: 422, body: { code: 'no_audio' } }
       }
       await chmod(path.join(dir, 'audio.m4a'), 0o644)
-      let videoName = video
+      // Telegram plays H.264 8-bit in the chat. HEVC, AV1 and VP9 keep the sound and freeze the picture.
+      let videoName = await h264IfNeeded(videoPath, dir)
+      const sendPath = path.join(dir, videoName)
       let videoTooBig = false
-      if ((await stat(videoPath)).size > SEND_MAX_BYTES) {
+      if ((await stat(sendPath)).size > SEND_MAX_BYTES) {
         videoTooBig = true
         videoName = null
-        await rm(videoPath, { force: true })
+        await rm(sendPath, { force: true })
       }
       return {
         status: 200,
