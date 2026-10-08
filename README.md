@@ -81,7 +81,8 @@ flowchart LR
         direction TB
         GA["Gladia API v2\n100+ langs · diarization"]
         GR["Groq API\nllama-3.3-70b"]
-        TG["Telegram Bot API"]
+        TG["Telegram Bot API\ncloud or local server"]
+        DL["downloader/\nyt-dlp + ffmpeg"]
     end
 
     PWA -->|"upload file"| TX
@@ -91,6 +92,7 @@ flowchart LR
     TX  --> pipeline
     PL  --> pipeline
     WH  --> pipeline
+    WH  -->|"link, is_unlimited only"| DL
 
     TX  --> credits
     TX  --> apikeys
@@ -117,13 +119,13 @@ flowchart LR
 **Key design decisions:**
 
 - Files go directly from the browser to Gladia — Supabase Storage is not used as a relay, reducing latency and egress costs.
-- Credit reservation happens before the Gladia job starts; adjustment (actual duration) happens after completion. Both are atomic Postgres RPCs to prevent double-spending under concurrent uploads.
+- A public upload reserves minutes before Gladia starts, then adjusts to the real duration. The server measures the file. The browser number is ignored. An account with `profiles.is_unlimited` is not charged.
 - The transcription pipeline lives in `src/lib/transcription.ts` — shared by both the web API routes and the Telegram bot. Adding a new client (mobile app, Slack bot, etc.) means calling the same `processFile()` function.
-- Telegram bot is a second frontend to the same service — it shares accounts, credits, and history with the web app. Account linking happens via one-time tokens generated on the website.
+- Telegram bot is a second frontend to the same service. Voice and files use the same minutes as the site. A public link is only for `is_unlimited`, is fetched by the separate downloader, and is not charged. Account linking happens via one-time tokens generated on the website.
 - Server Components are the default; Client Components only where interactivity is required (upload zone, polling, Telegram link button).
 - `next build --webpack` is required (not Turbopack) — next-pwa 5.6 uses Webpack plugins to generate the service worker.
 
-The UI is in English. The architecture is ready for localization (es-AR and pt-BR were the original target markets) — adding `next-intl` would be a straightforward next step.
+The UI is localized with next-intl: English, Spanish, and Portuguese.
 
 ---
 
@@ -164,7 +166,7 @@ See `.env.example` for the full list. Required:
 
 Apply migrations from `supabase/migrations/` to your Supabase project. The schema includes RLS policies and Postgres RPCs for atomic credit operations.
 
-After deploying, register the Telegram webhook:
+After deploying, register the Telegram webhook. Use `https://api.telegram.org` or your local Bot API URL:
 ```bash
 curl -X POST "https://api.telegram.org/bot<TOKEN>/setWebhook" \
   -d "url=https://your-domain.com/api/telegram/webhook&secret_token=<SECRET>"
@@ -188,5 +190,8 @@ src/
     ├── gladia.ts               Gladia API client
     ├── groq.ts                 Groq summarisation + translation
     ├── credits.ts              Atomic credit operations
+    ├── link-download.ts        Sends a public link to the downloader
+    ├── media-duration.ts       ffprobe for an uploaded file
     └── telegram.ts             Telegram Bot API client
+downloader/                     Separate service: yt-dlp, ffmpeg, no app secrets
 ```
