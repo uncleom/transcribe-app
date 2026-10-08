@@ -230,6 +230,35 @@ async function download(url) {
   }
 }
 
+const DOWNLOAD_TTL_MS = 2 * 60 * 60 * 1000
+const UUID_DIR = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+async function sweepDownloads() {
+  let names = []
+  try {
+    names = await readdir(ROOT)
+  } catch {
+    return
+  }
+  const cutoff = Date.now() - DOWNLOAD_TTL_MS
+  for (const name of names) {
+    if (!UUID_DIR.test(name)) continue
+    const dir = path.join(ROOT, name)
+    try {
+      const info = await stat(dir)
+      if (!info.isDirectory() || info.mtimeMs >= cutoff) continue
+      await rm(dir, { recursive: true, force: true })
+    } catch {
+      // A file disappearing mid-sweep is fine.
+    }
+  }
+}
+
+await sweepDownloads()
+setInterval(() => {
+  sweepDownloads().catch(() => {})
+}, 30 * 60 * 1000)
+
 await startProxy(8888)
 
 const server = http.createServer(async (req, res) => {

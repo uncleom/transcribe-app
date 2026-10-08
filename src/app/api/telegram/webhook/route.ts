@@ -29,6 +29,20 @@ const MAX_FILE_BYTES = 20 * 1024 * 1024 // 20 MB (Telegram getFile limit)
 const LINK_GLOBAL = 2
 const linkUsers = new Set<number>()
 let linkActive = 0
+const seenUpdateIds = new Set<number>()
+const seenUpdateOrder: number[] = []
+
+function seenUpdate(id: number): boolean {
+  if (!Number.isFinite(id)) return false
+  if (seenUpdateIds.has(id)) return true
+  seenUpdateIds.add(id)
+  seenUpdateOrder.push(id)
+  if (seenUpdateOrder.length > 500) {
+    const oldest = seenUpdateOrder.shift()
+    if (oldest != null) seenUpdateIds.delete(oldest)
+  }
+  return false
+}
 
 function takeLinkSlot(telegramId: number): boolean {
   if (linkUsers.has(telegramId) || linkActive >= LINK_GLOBAL) return false
@@ -68,6 +82,10 @@ export async function POST(req: NextRequest) {
     update = await req.json() as TelegramUpdate
   } catch {
     return new Response('Bad request', { status: 400 })
+  }
+
+  if (seenUpdate(update.update_id)) {
+    return new Response('ok', { status: 200 })
   }
 
   // Respond immediately — Telegram requires < 5s response.
@@ -279,50 +297,30 @@ async function handleLink(
 
   if (!profile) return
 
+  if (profile.is_unlimited !== true) {
+    await sendMessage(chatId,
+      'Link download is not available for this account.\n\nSend an audio or video file instead.'
+    )
+    return
+  }
+
   if (!takeLinkSlot(telegramId)) {
     await sendMessage(chatId, 'Already working on a link. Wait until it finishes.')
     return
   }
 
-  let reservedSeconds = 0
   try {
-    if (!profile.is_unlimited && profile.credits_seconds <= 0) {
-      await sendMessage(chatId,
-        `You're out of free minutes. See what's left:\n${SITE_URL}/billing`
-      )
-      return
-    }
-
-    let quoted = 0
     try {
-      quoted = Math.ceil(await quotedDuration(url))
-    } catch (err) {
-      const unknown = err instanceof LinkError && err.code === 'unknown_length'
-      if (!(profile.is_unlimited && unknown)) {
-        await sendMessage(chatId, linkFailureText(err))
+      const quoted = Math.ceil(await quotedDuration(url))
+      if (quoted > 135 * 60) {
+        await sendMessage(chatId, 'This is longer than 135 minutes. Gladia won\'t take it.')
         return
       }
-    }
-
-    const subject = { type: 'user' as const, id: userId }
-    if (!profile.is_unlimited && profile.credits_seconds < quoted) {
-      await sendMessage(chatId,
-        `Not enough free minutes for this video. See what's left:\n${SITE_URL}/billing`
-      )
-      return
-    }
-    if (!profile.is_unlimited) {
-      try {
-        await reserveCredits(subject, quoted)
-        reservedSeconds = quoted
-      } catch (err) {
-        if (err instanceof CreditsInsufficientError) {
-          await sendMessage(chatId,
-            `Not enough free minutes for this video. See what's left:\n${SITE_URL}/billing`
-          )
-          return
-        }
-        throw err
+    } catch (err) {
+      const unknown = err instanceof LinkError && err.code === 'unknown_length'
+      if (!unknown) {
+        await sendMessage(chatId, linkFailureText(err))
+        return
       }
     }
 
@@ -333,7 +331,6 @@ async function handleLink(
     try {
       media = await downloadLink(url)
     } catch (err) {
-      if (reservedSeconds > 0) await refundCredits(subject, reservedSeconds)
       const code = err instanceof LinkError ? err.code : 'unavailable'
       const detail = err instanceof LinkError ? '' : (err instanceof Error ? err.name : '')
       console.error('Link download failed:', code, detail)
@@ -353,12 +350,11 @@ async function handleLink(
       }
 
       const audioBuf = await readFile(media.audioPath)
-      const estimatedSeconds = reservedSeconds || Math.min(Math.ceil(media.durationSeconds), 135 * 60)
 
-    let host = 'link'
-    try { host = new URL(url).hostname } catch { /* keep the fallback */ }
-    const file = new File([new Uint8Array(audioBuf)], 'audio.m4a')
-    await completeTranscription(chatId, userId, langCode, host, file, 'audio.m4a', estimatedSeconds)
+      let host = 'link'
+      try { host = new URL(url).hostname } catch { /* keep the fallback */ }
+      const file = new File([new Uint8Array(audioBuf)], 'audio.m4a')
+      await completeTranscription(chatId, userId, langCode, host, file, 'audio.m4a', 0, false)
     } finally {
       await media.cleanup()
     }
@@ -384,6 +380,7 @@ async function completeTranscription(
   audio: Blob,
   audioName: string,
   estimatedSeconds: number,
+  charge = true,
 ) {
   const admin = createAdminClient()
   const subject = { type: 'user' as const, id: userId }
@@ -393,12 +390,14 @@ async function completeTranscription(
     result = await processFile(audio, audioName, userId)
   } catch (err) {
     console.error('Transcription error:', err)
-    await refundCredits(subject, estimatedSeconds)
+    if (charge && estimatedSeconds > 0) await refundCredits(subject, estimatedSeconds)
     await sendMessage(chatId, 'Transcription failed. Please try again.')
     return
   }
 
-  await adjustCredits(subject, estimatedSeconds, Math.ceil(result.duration))
+  if (charge && estimatedSeconds > 0) {
+    await adjustCredits(subject, estimatedSeconds, Math.ceil(result.duration))
+  }
 
   const { data: transcription } = await admin
     .from('transcriptions')

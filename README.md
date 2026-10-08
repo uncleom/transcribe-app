@@ -21,7 +21,7 @@ A full-stack PWA that transcribes audio and video files with automatic speaker d
 - **Credit system** — anonymous users get 3 min free (by IP); registered users get 20 min on signup; atomically tracked in Postgres
 - **Installable PWA** — works offline shell, install prompt on Android and iOS guidance banner
 - **Google OAuth** — one-click sign-in via Supabase Auth
-- **Telegram bot** — a connected account sends a voice message, an audio file, or a public link. The bot transcribes it on the same credits as the web app. `profiles.is_unlimited` skips the charge. A link is downloaded with yt-dlp, the video is sent back when it is under 2 GB, and the file is deleted. Gladia stops at 135 minutes. Private-network addresses are refused
+- **Telegram bot** — a connected account sends a voice message or an audio file. A public link is accepted only when `profiles.is_unlimited` is true. That account is not charged. The link is fetched by a separate download service, the video is sent back when it is under 2 GB, and the file is deleted. Gladia stops at 135 minutes. Private-network addresses are refused
 
 ---
 
@@ -157,8 +157,8 @@ See `.env.example` for the full list. Required:
 | `NEXT_PUBLIC_APP_URL` | Your site URL. The bot uses it in account links. No default |
 | `TELEGRAM_BOT_USERNAME` | Your bot username, without `@`. The connect button opens `t.me/<this>` |
 | `OWNER_USER_ID` | Optional Supabase user id. That account uses `GLADIA_API_KEY` and `GROQ_API_KEY`. Everyone else uses the `*_PUBLIC` keys when those are set. Not a Telegram allowlist |
-| `DOWNLOADER_URL` | Optional. Internal URL of the download service, for example `http://transcribe-downloader:8090`. When set, a link is fetched there instead of inside this app |
-| `DOWNLOADER_TOKEN` | Shared secret for that service. The service has no database or provider keys, and it refuses private-network addresses |
+| `DOWNLOADER_URL` | Required for link downloads. Internal URL of the download service, for example `http://transcribe-downloader:8090`. This app does not download links itself |
+| `DOWNLOADER_TOKEN` | Shared secret for that service. The service has no database or provider keys. It refuses private-network addresses and does not start unless its egress filter is installed |
 
 ### Database
 

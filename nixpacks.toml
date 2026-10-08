@@ -1,8 +1,5 @@
-# ffmpeg merges video and audio and extracts the speech track.
-# yt-dlp is fetched by scripts/fetch-yt-dlp.mjs so the binary stays out of git.
+# ffprobe reads the length of a file uploaded in the browser.
+# Link downloads run in the separate downloader image, not here.
 
 [phases.setup]
 nixPkgs = ["...", "ffmpeg"]
-
-[phases.install]
-cmds = ["npm ci", "node scripts/fetch-yt-dlp.mjs"]

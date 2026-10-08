@@ -5,6 +5,7 @@ import { resolveGladiaKey } from '@/lib/api-keys'
 import {
   reserveCredits,
   refundCredits,
+  checkCredits,
   CreditsInsufficientError,
   getClientIp,
   type CreditSubject,
@@ -28,7 +29,22 @@ const ALLOWED_MIME_TYPES = new Set([
   'video/quicktime',
 ])
 
-const MAX_FILE_SIZE = 500 * 1024 * 1024 // 500 MB
+const MAX_FILE_SIZE = 100 * 1024 * 1024
+const HEAVY_GLOBAL = 2
+const heavyClients = new Set<string>()
+let heavyActive = 0
+
+function takeHeavy(key: string): boolean {
+  if (heavyClients.has(key) || heavyActive >= HEAVY_GLOBAL) return false
+  heavyClients.add(key)
+  heavyActive += 1
+  return true
+}
+
+function freeHeavy(key: string): void {
+  if (!heavyClients.delete(key)) return
+  heavyActive -= 1
+}
 
 // iOS Safari sends empty type or application/octet-stream for M4A — fall back to extension
 const EXT_MIME: Record<string, string> = {
@@ -63,7 +79,56 @@ function sanitizeFilename(name: string): string {
 }
 
 export async function POST(req: NextRequest) {
-  // --- Parse form data ---
+  const supabase = await createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  const subject: CreditSubject = user
+    ? { type: 'user', id: user.id }
+    : { type: 'anon', ip: getClientIp(req) }
+
+  const admin = createAdminClient()
+  let unlimited = false
+  if (user) {
+    const { data: profile } = await admin
+      .from('profiles')
+      .select('is_unlimited')
+      .eq('id', user.id)
+      .single()
+    unlimited = profile?.is_unlimited === true
+  }
+  if (!unlimited) {
+    const credit = await checkCredits(subject, 1)
+    if (!credit.sufficient) {
+      return NextResponse.json(
+        { error: 'Insufficient credits', code: 'credits_insufficient' },
+        { status: 402 }
+      )
+    }
+  }
+
+  const announced = Number(req.headers.get('content-length'))
+  if (!Number.isFinite(announced) || announced < 0 || announced > MAX_FILE_SIZE + 1024 * 1024) {
+    return NextResponse.json({ error: 'File exceeds 100 MB limit' }, { status: 413 })
+  }
+
+  const slotKey = user?.id ?? (subject.type === 'anon' ? subject.ip : 'anon')
+  if (!takeHeavy(slotKey)) {
+    return NextResponse.json({ error: 'The server is busy. Try again in a minute.' }, { status: 429 })
+  }
+
+  try {
+  return await acceptUpload(req, admin, user?.id ?? null, unlimited, subject)
+  } finally {
+    freeHeavy(slotKey)
+  }
+}
+
+async function acceptUpload(
+  req: NextRequest,
+  admin: ReturnType<typeof createAdminClient>,
+  userId: string | null,
+  unlimited: boolean,
+  subject: CreditSubject,
+) {
   let formData: FormData
   try {
     formData = await req.formData()
@@ -85,22 +150,7 @@ export async function POST(req: NextRequest) {
   }
 
   if (file.size > MAX_FILE_SIZE) {
-    return NextResponse.json({ error: 'File exceeds 500 MB limit' }, { status: 413 })
-  }
-
-  // Length comes from the file. The browser hint is not used.
-  const admin = createAdminClient()
-  const supabase = await createServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  let unlimited = false
-  if (user) {
-    const { data: profile } = await admin
-      .from('profiles')
-      .select('is_unlimited')
-      .eq('id', user.id)
-      .single()
-    unlimited = profile?.is_unlimited === true
+    return NextResponse.json({ error: 'File exceeds 100 MB limit' }, { status: 413 })
   }
 
   const durationSeconds = await probeMediaDuration(new Uint8Array(await file.arrayBuffer()))
@@ -117,9 +167,6 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  const subject: CreditSubject = user
-    ? { type: 'user', id: user.id }
-    : { type: 'anon', ip: getClientIp(req) }
   const reservedSeconds = durationSeconds == null ? 0 : Math.ceil(durationSeconds)
 
   if (!unlimited && reservedSeconds > 0) {
@@ -143,7 +190,7 @@ export async function POST(req: NextRequest) {
   let gladiaAudioUrl: string
   let resultUrl: string
   try {
-    const gladiaKey = resolveGladiaKey(user?.id)
+    const gladiaKey = resolveGladiaKey(userId)
     gladiaAudioUrl = await uploadAudio(file, safeName, gladiaKey)
     resultUrl = await startTranscription({
       audio_url: gladiaAudioUrl,
@@ -165,7 +212,7 @@ export async function POST(req: NextRequest) {
       status: 'processing',
       gladia_result_url: resultUrl,
       reserved_seconds: reservedSeconds,
-      ...(user ? { user_id: user.id } : {}),
+      ...(userId ? { user_id: userId } : {}),
     })
     .select('id')
     .single()

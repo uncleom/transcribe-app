@@ -29,7 +29,7 @@
   "Upload": {
     "ariaLabel": "Enviar arquivo de áudio ou vídeo",
     "dropHere": "Solte áudio ou vídeo aqui",
-    "browseHint": "ou clique para escolher · MP3, MP4, WAV, M4A, OGG, FLAC · até 500 MB",
+    "browseHint": "ou clique para escolher · MP3, MP4, WAV, M4A, OGG, FLAC · até 100 MB",
     "detecting": "detectando…",
     "uploading": "Enviando…",
     "unexpectedResponse": "Resposta inesperada do servidor",

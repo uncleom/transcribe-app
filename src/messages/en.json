@@ -29,7 +29,7 @@
   "Upload": {
     "ariaLabel": "Upload audio or video file",
     "dropHere": "Drop audio or video here",
-    "browseHint": "or click to browse · MP3, MP4, WAV, M4A, OGG, FLAC · up to 500 MB",
+    "browseHint": "or click to browse · MP3, MP4, WAV, M4A, OGG, FLAC · up to 100 MB",
     "detecting": "detecting…",
     "uploading": "Uploading…",
     "unexpectedResponse": "Unexpected server response",

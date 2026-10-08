@@ -18,6 +18,8 @@ jobs:
 
       - run: npm ci
 
+      - run: npm run lint
+
       - run: npm run build
         env:
           NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
@@ -28,3 +30,19 @@ jobs:
       - run: node scripts/check-credit-lock.mjs
 
       - run: node downloader/private-net.test.mjs
+
+      - name: Build and smoke-test the downloader
+        run: |
+          docker build -t transcribe-downloader-ci downloader
+          docker run -d --name dl-ci --cap-add=NET_ADMIN -e DOWNLOADER_TOKEN=ci-token -p 18090:8090 transcribe-downloader-ci
+          for i in 1 2 3 4 5 6 7 8 9 10; do
+            if curl -fsS http://127.0.0.1:18090/health; then
+              break
+            fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:18090/health
+          docker stop dl-ci
+          docker run -d --name dl-closed -e DOWNLOADER_TOKEN=ci-token transcribe-downloader-ci
+          sleep 2
+          test "$(docker inspect -f '{{.State.Running}}' dl-closed)" = "false"
