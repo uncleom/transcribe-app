@@ -31,6 +31,17 @@ jobs:
 
       - run: node downloader/private-net.test.mjs
 
+      - name: Check link timeouts and Telegram video metadata
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          node --test scripts/link-media.test.mjs
+
+      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+
+      - name: Check the Threads extractor
+        run: uv run --script downloader/test-threads.py
+
       - name: Build and smoke-test the downloader
         run: |
           docker build -t transcribe-downloader-ci downloader

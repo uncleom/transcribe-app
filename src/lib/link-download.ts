@@ -2,6 +2,7 @@ import { lookup } from 'node:dns/promises'
 import { rm, stat } from 'node:fs/promises'
 import { BlockList, isIP } from 'node:net'
 import path from 'node:path'
+import { postLongJson } from './long-request.mjs'
 
 // Gladia accepts 135 minutes. The local Bot API accepts a file up to 2000 MB.
 export const GLADIA_MAX_SECONDS = 135 * 60
@@ -24,6 +25,7 @@ PRIVATE.addSubnet('fc00::', 7, 'ipv6')
 PRIVATE.addSubnet('fe80::', 10, 'ipv6')
 
 export type LinkFailure = 'blocked' | 'too_long' | 'unknown_length' | 'unavailable' | 'no_audio'
+  | 'timeout' | 'unsupported' | 'source_blocked' | 'login_required' | 'no_media'
 
 export class LinkError extends Error {
   code: LinkFailure
@@ -104,26 +106,28 @@ async function askDownloader(pathname: string, url: string, timeoutMs: number): 
   const root = downloaderUrl()
   const token = process.env.DOWNLOADER_TOKEN || ''
   if (!root || !token) throw new LinkError('unavailable')
-  const res = await fetch(`${root}${pathname}`, {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify({ url }),
-    signal: AbortSignal.timeout(timeoutMs),
-  })
-  let data: Record<string, unknown> = {}
+  let statusCode: number
+  let data: Record<string, unknown>
   try {
-    data = await res.json() as Record<string, unknown>
-  } catch {
-    data = {}
+    const response = await postLongJson(`${root}${pathname}`, { url }, timeoutMs, {
+      authorization: `Bearer ${token}`,
+    })
+    statusCode = response.statusCode
+    data = response.data as Record<string, unknown>
+  } catch (err) {
+    const code = err && typeof err === 'object' && 'code' in err ? String(err.code) : ''
+    const timeout = /TIMEOUT|ABORTED/.test(code) || (err instanceof Error && err.name === 'TimeoutError')
+    // No URLs, authorization headers or source cookies in logs.
+    console.error('Downloader transport failed:', timeout ? 'timeout' : (code || 'invalid_response'))
+    throw new LinkError(timeout ? 'timeout' : 'unavailable')
   }
-  if (!res.ok) {
+  if (statusCode < 200 || statusCode >= 300) {
     const code = data.code
     if (
       code === 'blocked' || code === 'too_long' || code === 'unknown_length'
       || code === 'unavailable' || code === 'no_audio'
+      || code === 'timeout' || code === 'unsupported' || code === 'source_blocked'
+      || code === 'login_required' || code === 'no_media'
     ) {
       throw new LinkError(code)
     }
@@ -148,7 +152,8 @@ export async function quotedDuration(rawUrl: string): Promise<number> {
 }
 
 async function fromDownloader(url: string): Promise<LinkMedia> {
-  const data = await askDownloader('/download', url, 21 * 60 * 1000)
+  // Download, audio extraction and H.264 encoding have separate server deadlines.
+  const data = await askDownloader('/download', url, 60 * 60 * 1000)
   const id = typeof data.id === 'string' ? data.id : ''
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
     throw new LinkError('unavailable')

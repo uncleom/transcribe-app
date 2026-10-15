@@ -22,7 +22,7 @@ import { summariseTranscript, translateTranscript } from '@/lib/groq'
 import { resolveGroqKey } from '@/lib/api-keys'
 import type { TranscriptionResult } from '@/types'
 import { reserveCredits, adjustCredits, refundCredits, CreditsInsufficientError } from '@/lib/credits'
-import { downloadLink, extractHttpUrl, quotedDuration, LinkError } from '@/lib/link-download'
+import { downloadLink, extractHttpUrl, LinkError } from '@/lib/link-download'
 
 const SITE_URL = (process.env.NEXT_PUBLIC_APP_URL ?? '').replace(/\/$/, '')
 const MAX_FILE_BYTES = 20 * 1024 * 1024 // 20 MB (Telegram getFile limit)
@@ -313,20 +313,8 @@ async function handleLink(
   }
 
   try {
-    try {
-      const quoted = Math.ceil(await quotedDuration(url))
-      if (quoted > 135 * 60) {
-        await sendMessage(chatId, 'This is longer than 135 minutes. Gladia won\'t take it.')
-        return
-      }
-    } catch (err) {
-      const unknown = err instanceof LinkError && err.code === 'unknown_length'
-      if (!unknown) {
-        await sendMessage(chatId, linkFailureText(err))
-        return
-      }
-    }
-
+    // The service checks length before and after downloading. No extra anonymous
+    // extraction here: all link-enabled accounts are unlimited.
     await sendMessage(chatId, 'Downloading the video.')
     await sendChatAction(chatId, 'upload_video')
 
@@ -372,7 +360,12 @@ function linkFailureText(err: unknown): string {
   if (code === 'too_long') return 'This is longer than 135 minutes. Gladia won\'t take it.'
   if (code === 'unknown_length') return 'Couldn\'t read how long this is, so I didn\'t download it.'
   if (code === 'no_audio') return 'This video has no audio track.'
-  return 'Couldn\'t download this. If it\'s private, I don\'t have a login for it.'
+  if (code === 'timeout') return 'Downloading or converting this video took too long. Please try again later.'
+  if (code === 'unsupported') return 'The downloader does not support this link yet. You can send the file instead.'
+  if (code === 'source_blocked') return 'The source site blocked the server download or asked for an anti-bot check. The post may still be public.'
+  if (code === 'login_required') return 'The source site requires a login for this request, even if the post is public.'
+  if (code === 'no_media') return 'This post has no downloadable video. Photos and carousels are not supported yet.'
+  return 'Couldn\'t download this because the source or download service failed. You can send the file instead.'
 }
 
 async function completeTranscription(
