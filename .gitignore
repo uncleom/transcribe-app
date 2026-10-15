@@ -45,6 +45,7 @@ yarn-error.log*
 
 # typescript
 *.tsbuildinfo
+__pycache__/
 next-env.d.ts
 
 # private business/brand docs

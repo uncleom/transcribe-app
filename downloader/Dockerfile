@@ -5,7 +5,8 @@ RUN apt-get update \
   && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
-COPY fetch-yt-dlp.mjs private-net.mjs proxy.mjs server.mjs entrypoint.sh ./
+COPY fetch-yt-dlp.mjs private-net.mjs proxy.mjs failures.mjs server.mjs entrypoint.sh ./
+COPY plugins ./plugins
 RUN node fetch-yt-dlp.mjs && chmod 755 entrypoint.sh
 
 ENV YT_DLP_BIN=/app/bin/yt-dlp

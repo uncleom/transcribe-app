@@ -8,6 +8,7 @@ import { startProxy } from './proxy.mjs'
 import { isBlockedHostname, isPrivateAddress } from './private-net.mjs'
 import { lookup } from 'node:dns/promises'
 import { isIP } from 'node:net'
+import { logFailure } from './failures.mjs'
 
 const PORT = Number(process.env.PORT || 8090)
 const TOKEN = process.env.DOWNLOADER_TOKEN || ''
@@ -24,6 +25,8 @@ if (!TOKEN) {
 
 const YT_BASE = [
   '--ignore-config',
+  '--no-plugin-dirs',
+  '--plugin-dirs', path.join(import.meta.dirname, 'plugins'),
   '--no-playlist',
   '--no-warnings',
   '--no-progress',
@@ -31,6 +34,7 @@ const YT_BASE = [
   '--socket-timeout', '30',
   '--retries', '2',
   '--no-cache-dir',
+  '--js-runtimes', 'node',
   '--proxy', PROXY,
 ]
 
@@ -45,10 +49,14 @@ function run(cmd, args, timeoutMs) {
   const child = spawn(cmd, args, { stdio: ['ignore', 'pipe', 'pipe'] })
   let stdout = ''
   let stderr = ''
+  let timedOut = false
   const take = (prev, chunk) => (prev + chunk.toString('utf8')).slice(-4000)
   child.stdout.on('data', (chunk) => { stdout = take(stdout, chunk) })
   child.stderr.on('data', (chunk) => { stderr = take(stderr, chunk) })
-  const timer = setTimeout(() => child.kill('SIGKILL'), timeoutMs)
+  const timer = setTimeout(() => {
+    timedOut = true
+    child.kill('SIGKILL')
+  }, timeoutMs)
   return new Promise((resolve, reject) => {
     child.on('error', (err) => {
       clearTimeout(timer)
@@ -56,7 +64,7 @@ function run(cmd, args, timeoutMs) {
     })
     child.on('close', (code) => {
       clearTimeout(timer)
-      resolve({ code: code ?? 1, stdout, stderr })
+      resolve({ code: code ?? 1, stdout, stderr, timedOut })
     })
   })
 }
@@ -141,7 +149,7 @@ async function h264IfNeeded(videoPath, dir) {
     '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-preset', 'veryfast', '-crf', '23',
     '-c:a', 'aac', '-ac', '2', '-b:a', '128k',
     '-movflags', '+faststart',
-    '-vf', 'scale=trunc(iw/2)*2:trunc(ih/2)*2',
+    '-vf', 'scale=trunc(ih*dar/2)*2:trunc(ih/2)*2,setsar=1',
     out,
   ], 20 * 60 * 1000)
   if (encoded.code !== 0) {
@@ -236,8 +244,9 @@ async function download(url) {
       }
     }
     if (!tooBig(videoRun.stderr)) {
+      const code = logFailure('video', url, videoRun)
       await cleanup()
-      return { status: 422, body: { code: 'unavailable' } }
+      return { status: 422, body: { code } }
     }
     const audioRun = await run(YT_DLP, [
       ...YT_BASE,
@@ -248,8 +257,9 @@ async function download(url) {
       url,
     ], 20 * 60 * 1000)
     if (audioRun.code !== 0) {
+      const code = logFailure('audio', url, audioRun)
       await cleanup()
-      return { status: 422, body: { code: 'unavailable' } }
+      return { status: 422, body: { code } }
     }
     const speech = await findFile(dir, (name) => name.startsWith('speech.') && !name.endsWith('.part'))
     if (!speech) {
@@ -346,7 +356,9 @@ const server = http.createServer(async (req, res) => {
     }
     const result = await download(url)
     send(res, result.status, result.body)
-  } catch {
+  } catch (err) {
+    console.error(JSON.stringify({ event: 'download_failed', stage: 'service', host: new URL(url).hostname,
+      code: typeof err?.code === 'string' ? err.code : 'unavailable' }))
     send(res, 422, { code: 'unavailable' })
   }
 })
