@@ -118,11 +118,16 @@ test('rejects invalid magic bytes and oversized input', async () => {
 
 test('maps 429 and timeout to safe unavailable errors without leaking provider details', async () => withImage(async (file) => {
   const rateLimit = async () => { const error = new Error('private provider body'); error.status = 429; throw error }
-  for (const transport of [rateLimit, (request) => new Promise((_, reject) => request.config.abortSignal.addEventListener('abort', () => reject(Object.assign(new Error('aborted'), { name: 'AbortError' })), { once: true }))]) {
-    await assert.rejects(analyzeImage(file, { env, now, transport, timeoutMs: 10 }), (error) => {
-      assert.equal(error.code, 'unavailable')
-      assert.doesNotMatch(error.message, /private|provider|429/)
-      return true
-    })
-  }
+  // AbortSignal.timeout is unref'ed. A real HTTP transport holds a socket open;
+  // this promise-only fixture needs its own referenced handle on Node 22.
+  const keepAlive = setInterval(() => {}, 1000)
+  try {
+    for (const transport of [rateLimit, (request) => new Promise((_, reject) => request.config.abortSignal.addEventListener('abort', () => reject(Object.assign(new Error('aborted'), { name: 'AbortError' })), { once: true }))]) {
+      await assert.rejects(analyzeImage(file, { env, now, transport, timeoutMs: 10 }), (error) => {
+        assert.equal(error.code, 'unavailable')
+        assert.doesNotMatch(error.message, /private|provider|429/)
+        return true
+      })
+    }
+  } finally { clearInterval(keepAlive) }
 }))
