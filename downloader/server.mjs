@@ -1,22 +1,18 @@
-import { spawn } from 'node:child_process'
 import { timingSafeEqual } from 'node:crypto'
-import { chmod, mkdir, readdir, rm, stat } from 'node:fs/promises'
+import { readdir, rm, stat } from 'node:fs/promises'
 import http from 'node:http'
 import path from 'node:path'
-import { randomUUID } from 'node:crypto'
 import { startProxy } from './proxy.mjs'
 import { isBlockedHostname, isPrivateAddress } from './private-net.mjs'
 import { lookup } from 'node:dns/promises'
 import { isIP } from 'node:net'
-import { logFailure } from './failures.mjs'
+import { run } from './process.mjs'
+import { createDownloader, MAX_SECONDS, PROXY } from './post-media.mjs'
 
 const PORT = Number(process.env.PORT || 8090)
 const TOKEN = process.env.DOWNLOADER_TOKEN || ''
 const ROOT = process.env.DOWNLOAD_ROOT || '/downloads'
 const YT_DLP = process.env.YT_DLP_BIN || '/app/bin/yt-dlp'
-const MAX_SECONDS = 135 * 60
-const SEND_MAX_BYTES = 2_000_000_000
-const PROXY = 'http://127.0.0.1:8888'
 
 if (!TOKEN) {
   console.error('DOWNLOADER_TOKEN is required')
@@ -43,30 +39,6 @@ function sameSecret(header) {
   const a = Buffer.from(given)
   const b = Buffer.from(TOKEN)
   return a.length === b.length && timingSafeEqual(a, b)
-}
-
-function run(cmd, args, timeoutMs) {
-  const child = spawn(cmd, args, { stdio: ['ignore', 'pipe', 'pipe'] })
-  let stdout = ''
-  let stderr = ''
-  let timedOut = false
-  const take = (prev, chunk) => (prev + chunk.toString('utf8')).slice(-4000)
-  child.stdout.on('data', (chunk) => { stdout = take(stdout, chunk) })
-  child.stderr.on('data', (chunk) => { stderr = take(stderr, chunk) })
-  const timer = setTimeout(() => {
-    timedOut = true
-    child.kill('SIGKILL')
-  }, timeoutMs)
-  return new Promise((resolve, reject) => {
-    child.on('error', (err) => {
-      clearTimeout(timer)
-      reject(err)
-    })
-    child.on('close', (code) => {
-      clearTimeout(timer)
-      resolve({ code: code ?? 1, stdout, stderr, timedOut })
-    })
-  })
 }
 
 async function assertPublic(raw) {
@@ -106,61 +78,6 @@ async function probe(url) {
   return parseDuration(line)
 }
 
-async function findFile(dir, pred) {
-  const names = await readdir(dir)
-  return names.find(pred) || null
-}
-
-function tooBig(stderr) {
-  return /larger than max-filesize|File is larger/i.test(stderr)
-}
-
-async function videoPicture(file) {
-  const result = await run('ffprobe', [
-    '-v', 'error',
-    '-select_streams', 'v:0',
-    '-show_entries', 'stream=codec_name,pix_fmt',
-    '-of', 'json',
-    file,
-  ], 30_000)
-  if (result.code !== 0) return { codec: '', pix: '' }
-  try {
-    const stream = JSON.parse(result.stdout).streams?.[0] ?? {}
-    return { codec: stream.codec_name || '', pix: stream.pix_fmt || '' }
-  } catch {
-    return { codec: '', pix: '' }
-  }
-}
-
-function telegramCanPlay(codec, pix) {
-  return codec === 'h264' && (pix === 'yuv420p' || pix === 'yuvj420p')
-}
-
-async function h264IfNeeded(videoPath, dir) {
-  const { codec, pix } = await videoPicture(videoPath)
-  if (telegramCanPlay(codec, pix)) {
-    console.log(`video keep ${codec} ${pix}`)
-    return path.basename(videoPath)
-  }
-  console.log(`video transcode ${codec || 'unknown'} ${pix || 'unknown'}`)
-  const out = path.join(dir, 'video-h264.mp4')
-  const encoded = await run('ffmpeg', [
-    '-y', '-i', videoPath,
-    '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-preset', 'veryfast', '-crf', '23',
-    '-c:a', 'aac', '-ac', '2', '-b:a', '128k',
-    '-movflags', '+faststart',
-    '-vf', 'scale=trunc(ih*dar/2)*2:trunc(ih/2)*2,setsar=1',
-    out,
-  ], 20 * 60 * 1000)
-  if (encoded.code !== 0) {
-    console.log('video transcode failed')
-    return path.basename(videoPath)
-  }
-  await chmod(out, 0o644)
-  if (path.resolve(out) !== path.resolve(videoPath)) await rm(videoPath, { force: true })
-  return 'video-h264.mp4'
-}
-
 async function readBody(req) {
   const chunks = []
   let size = 0
@@ -178,115 +95,7 @@ function send(res, status, body) {
   res.end(raw)
 }
 
-async function download(url) {
-  const id = randomUUID()
-  const dir = path.join(ROOT, id)
-  await mkdir(dir, { mode: 0o755 })
-  const cleanup = () => rm(dir, { recursive: true, force: true })
-  try {
-    const probed = await probe(url)
-    if (probed != null && probed > MAX_SECONDS) {
-      await cleanup()
-      return { status: 422, body: { code: 'too_long' } }
-    }
-    const videoRun = await run(YT_DLP, [
-      ...YT_BASE,
-      '--max-filesize', '2000M',
-      '--merge-output-format', 'mp4',
-      '-o', path.join(dir, 'video.%(ext)s'),
-      url,
-    ], 20 * 60 * 1000)
-    if (videoRun.code === 0) {
-      const video = await findFile(dir, (name) => name.startsWith('video.') && !name.endsWith('.part'))
-      if (!video) {
-        await cleanup()
-        return { status: 422, body: { code: 'unavailable' } }
-      }
-      const videoPath = path.join(dir, video)
-      await chmod(videoPath, 0o644)
-      let duration = probed
-      if (duration == null) {
-        const probedFile = await run('ffprobe', [
-          '-v', 'error', '-show_entries', 'format=duration', '-of', 'default=nw=1:nk=1', videoPath,
-        ], 30_000)
-        duration = probedFile.code === 0 ? parseDuration(probedFile.stdout) : null
-      }
-      if (duration != null && duration > MAX_SECONDS) {
-        await cleanup()
-        return { status: 422, body: { code: 'too_long' } }
-      }
-      const extracted = await run('ffmpeg', [
-        '-y', '-i', videoPath, '-vn', '-ac', '1', '-c:a', 'aac', '-b:a', '64k', path.join(dir, 'audio.m4a'),
-      ], 15 * 60 * 1000)
-      if (extracted.code !== 0) {
-        await cleanup()
-        return { status: 422, body: { code: 'no_audio' } }
-      }
-      await chmod(path.join(dir, 'audio.m4a'), 0o644)
-      // Telegram plays H.264 8-bit in the chat. HEVC, AV1 and VP9 keep the sound and freeze the picture.
-      let videoName = await h264IfNeeded(videoPath, dir)
-      const sendPath = path.join(dir, videoName)
-      let videoTooBig = false
-      if ((await stat(sendPath)).size > SEND_MAX_BYTES) {
-        videoTooBig = true
-        videoName = null
-        await rm(sendPath, { force: true })
-      }
-      return {
-        status: 200,
-        body: {
-          id,
-          video: videoName,
-          audio: 'audio.m4a',
-          durationSeconds: duration ?? 60,
-          videoTooBig,
-        },
-      }
-    }
-    if (!tooBig(videoRun.stderr)) {
-      const code = logFailure('video', url, videoRun)
-      await cleanup()
-      return { status: 422, body: { code } }
-    }
-    const audioRun = await run(YT_DLP, [
-      ...YT_BASE,
-      '-f', 'ba/b',
-      '-x',
-      '--audio-format', 'm4a',
-      '-o', path.join(dir, 'speech.%(ext)s'),
-      url,
-    ], 20 * 60 * 1000)
-    if (audioRun.code !== 0) {
-      const code = logFailure('audio', url, audioRun)
-      await cleanup()
-      return { status: 422, body: { code } }
-    }
-    const speech = await findFile(dir, (name) => name.startsWith('speech.') && !name.endsWith('.part'))
-    if (!speech) {
-      await cleanup()
-      return { status: 422, body: { code: 'no_audio' } }
-    }
-    await chmod(path.join(dir, speech), 0o644)
-    const duration = probed
-    if (duration != null && duration > MAX_SECONDS) {
-      await cleanup()
-      return { status: 422, body: { code: 'too_long' } }
-    }
-    return {
-      status: 200,
-      body: {
-        id,
-        video: null,
-        audio: speech,
-        durationSeconds: duration ?? 60,
-        videoTooBig: true,
-      },
-    }
-  } catch (err) {
-    await cleanup()
-    throw err
-  }
-}
+const download = createDownloader({ root: ROOT, ytDlp: YT_DLP, ytBase: YT_BASE, assertPublic })
 
 const DOWNLOAD_TTL_MS = 2 * 60 * 60 * 1000
 const UUID_DIR = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i

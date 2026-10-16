@@ -1,6 +1,7 @@
 import { readFile, rmdir, unlink } from 'node:fs/promises'
 import path from 'node:path'
 import { sendVideoFile } from './local-video.mjs'
+import { sendPostMedia, sendPostText } from './post-delivery.mjs'
 
 // Telegram Bot API helpers.
 // TELEGRAM_BOT_API_URL empty means the public cloud. Production points at the
@@ -134,6 +135,14 @@ export async function sendLocalVideo(chatId: number, filePath: string): Promise<
     throw new Error('Telegram file is outside the allowed directory')
   }
   await sendVideoFile(API, chatId, resolved)
+}
+
+export async function sendPostMessage(chatId: number, text: string): Promise<void> {
+  await sendPostText(API, chatId, text)
+}
+
+export async function sendLocalPost(chatId: number, items: import('./link-download').LinkPostItem[]): Promise<{ failed: number[] }> {
+  return sendPostMedia(API, chatId, items, path.resolve(LOCAL_FILES_ROOT, 'outgoing'))
 }
 
 export interface TelegramFileInfo {

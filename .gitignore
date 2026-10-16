@@ -35,6 +35,16 @@ yarn-error.log*
 .env*
 !.env.example
 
+# Server-only cloud authorization; mount outside the repository.
+.secrets/
+credentials/
+application_default_credentials.json
+*.credentials.json
+*-service-account.json
+service-account*.json
+*-credentials.json
+.gcloud/
+
 # vercel
 .vercel
 

@@ -1,8 +1,8 @@
 import { lookup } from 'node:dns/promises'
-import { rm, stat } from 'node:fs/promises'
 import { BlockList, isIP } from 'node:net'
 import path from 'node:path'
 import { postLongJson } from './long-request.mjs'
+import { readDownloaderPost } from './link-post.mjs'
 
 // Gladia accepts 135 minutes. The local Bot API accepts a file up to 2000 MB.
 export const GLADIA_MAX_SECONDS = 135 * 60
@@ -35,11 +35,19 @@ export class LinkError extends Error {
   }
 }
 
-export interface LinkMedia {
-  videoPath: string | null
-  audioPath: string
-  durationSeconds: number
+export interface LinkPostItem {
+  index: number
+  type: 'photo' | 'video'
+  filePath: string | null
+  audioPath: string | null
+  durationSeconds: number | null
   videoTooBig: boolean
+  error: string | null
+}
+
+export interface LinkMedia {
+  text: string
+  items: LinkPostItem[]
   cleanup: () => Promise<void>
 }
 
@@ -136,11 +144,6 @@ async function askDownloader(pathname: string, url: string, timeoutMs: number): 
   return data
 }
 
-function safeName(value: unknown): string | null {
-  if (typeof value !== 'string' || !/^[a-z0-9._-]+$/i.test(value)) return null
-  return value
-}
-
 /** Ask the download service for the length. No media is saved. */
 export async function quotedDuration(rawUrl: string): Promise<number> {
   const url = await assertPublicHttpUrl(rawUrl)
@@ -154,33 +157,10 @@ export async function quotedDuration(rawUrl: string): Promise<number> {
 async function fromDownloader(url: string): Promise<LinkMedia> {
   // Download, audio extraction and H.264 encoding have separate server deadlines.
   const data = await askDownloader('/download', url, 60 * 60 * 1000)
-  const id = typeof data.id === 'string' ? data.id : ''
-  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
-    throw new LinkError('unavailable')
-  }
-  const dir = path.resolve(OUTGOING, id)
-  if (dir !== path.join(OUTGOING, id)) throw new LinkError('unavailable')
-  const audioName = safeName(data.audio)
-  const videoName = data.video == null ? null : safeName(data.video)
-  if (!audioName || (data.video != null && !videoName)) throw new LinkError('unavailable')
-  const audioPath = path.join(dir, audioName)
-  const videoPath = videoName ? path.join(dir, videoName) : null
-  const cleanup = () => rm(dir, { recursive: true, force: true })
   try {
-    await stat(audioPath)
+    return await readDownloaderPost(data, OUTGOING) as LinkMedia
   } catch {
-    await cleanup()
     throw new LinkError('unavailable')
-  }
-  const durationSeconds = typeof data.durationSeconds === 'number' && data.durationSeconds > 0
-    ? data.durationSeconds
-    : 60
-  return {
-    videoPath,
-    audioPath,
-    durationSeconds,
-    videoTooBig: data.videoTooBig === true,
-    cleanup,
   }
 }
 
