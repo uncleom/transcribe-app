@@ -1,4 +1,4 @@
-"""Public Threads video posts, using the media data embedded in the post page."""
+"""Exact public Threads posts: original caption, photos and ordered mixed media."""
 
 import json
 import re
@@ -18,7 +18,9 @@ def _find_post(value, code):
     while pending:
         item = pending.pop()
         if isinstance(item, dict):
-            if item.get("code") == code and "video_versions" in item:
+            if item.get("code") == code and any(
+                key in item for key in ("video_versions", "image_versions2", "carousel_media", "caption")
+            ):
                 return item
             pending.extend(item.values())
         elif isinstance(item, list):
@@ -50,7 +52,8 @@ class ThreadsIE(InfoExtractor):
         # The anonymous desktop browser page contains video_versions. A plain
         # HTTP fingerprint can receive only the page shell, without that data.
         webpage, response = self._download_webpage_handle(url, link_id, impersonate=True)
-        code = _post_code(response.url) or _post_code(self._og_search_url(webpage, default=""))
+        code = (_post_code(url) or _post_code(response.url)
+                or _post_code(self._og_search_url(webpage, default="")))
         if not code:
             raise ExtractorError("Unsupported URL: unable to resolve Threads post", expected=True)
 
@@ -69,9 +72,32 @@ class ThreadsIE(InfoExtractor):
         if not post:
             raise ExtractorError("Threads did not return media data for this post", expected=True)
 
+        description = (post.get("caption") or {}).get("text")
+        if not isinstance(description, str):
+            description = None
+        common = {
+            "id": code,
+            "title": description or f"Threads post {code}",
+            "description": description,
+            "uploader": (post.get("user") or {}).get("username"),
+            "timestamp": int_or_none(post.get("taken_at")),
+        }
+        carousel = post.get("carousel_media")
+        if isinstance(carousel, list) and carousel:
+            return {
+                **common, "_type": "playlist",
+                "entries": [self._media(item if isinstance(item, dict) else {}, f"{code}-{index}")
+                            for index, item in enumerate(carousel, 1)],
+            }
+        return {**self._media(post, code), **common}
+
+    def _media(self, media, media_id):
         formats = []
         seen = set()
-        for video in post.get("video_versions") or []:
+        videos = media.get("video_versions") or []
+        for video in videos:
+            if not isinstance(video, dict):
+                continue
             media_url = _media_url(video.get("url"))
             if not media_url or media_url in seen:
                 continue
@@ -80,18 +106,25 @@ class ThreadsIE(InfoExtractor):
                 "url": media_url,
                 "format_id": f"http-{len(formats)}",
                 "ext": "mp4",
-                "width": int_or_none(video.get("width") or post.get("original_width")),
-                "height": int_or_none(video.get("height") or post.get("original_height")),
+                "width": int_or_none(video.get("width") or media.get("original_width")),
+                "height": int_or_none(video.get("height") or media.get("original_height")),
             })
-        if not formats:
-            raise ExtractorError("No video found in this post", expected=True)
-
-        description = (post.get("caption") or {}).get("text")
-        return {
-            "id": code,
-            "title": description or f"Threads video {code}",
-            "description": description,
-            "uploader": (post.get("user") or {}).get("username"),
-            "timestamp": int_or_none(post.get("taken_at")),
-            "formats": formats,
-        }
+        common = {"id": media_id, "title": f"Threads media {media_id}", "formats": formats}
+        if videos or media.get("media_type") == 2:
+            return {**common, "post_media_type": "video"}
+        thumbnails = []
+        for candidate in (media.get("image_versions2") or {}).get("candidates") or []:
+            if not isinstance(candidate, dict):
+                continue
+            media_url = _media_url(candidate.get("url"))
+            if media_url:
+                thumbnails.append({
+                    "url": media_url,
+                    "width": int_or_none(candidate.get("width")),
+                    "height": int_or_none(candidate.get("height")),
+                })
+        thumbnails.sort(key=lambda image: (image.get("width") or 0) * (image.get("height") or 0))
+        if "image_versions2" in media or media.get("media_type") == 1:
+            return {**common, "post_media_type": "photo", "thumbnails": thumbnails,
+                    "thumbnail": thumbnails[-1]["url"] if thumbnails else None}
+        return {**common, "post_media_type": "text"}

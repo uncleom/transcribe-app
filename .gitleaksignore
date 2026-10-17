@@ -1,0 +1,4 @@
+# Confirmed false positives: public Groq model ID in historical prose, not a credential.
+3766334babed5537b591ead2103677d2d5fa536b:docs/portfolio-context.md:generic-api-key:36
+97a5478c09aeee9a6c2adbac9ed1b4f290643acd:docs/portfolio-context.md:generic-api-key:36
+4be4fea4f1a4d8180953ad46a1372ed469794554:docs/portfolio-context.md:generic-api-key:36

@@ -12,7 +12,8 @@ import {
   answerCallbackQuery,
   getFileInfo,
   downloadFile,
-  sendLocalVideo,
+  sendLocalPost,
+  sendPostMessage,
   type TelegramUpdate,
   type TelegramMessage,
   type TelegramCallbackQuery,
@@ -23,6 +24,9 @@ import { resolveGroqKey } from '@/lib/api-keys'
 import type { TranscriptionResult } from '@/types'
 import { reserveCredits, adjustCredits, refundCredits, CreditsInsufficientError } from '@/lib/credits'
 import { downloadLink, extractHttpUrl, LinkError } from '@/lib/link-download'
+import type { LinkPostItem } from '@/lib/link-download'
+import { deliverPost } from '@/lib/process-post.mjs'
+import { analyzeImage } from '@/lib/image-analysis.mjs'
 
 const SITE_URL = (process.env.NEXT_PUBLIC_APP_URL ?? '').replace(/\/$/, '')
 const MAX_FILE_BYTES = 20 * 1024 * 1024 // 20 MB (Telegram getFile limit)
@@ -315,7 +319,7 @@ async function handleLink(
   try {
     // The service checks length before and after downloading. No extra anonymous
     // extraction here: all link-enabled accounts are unlimited.
-    await sendMessage(chatId, 'Downloading the video.')
+    await sendMessage(chatId, 'Downloading the post.')
     await sendChatAction(chatId, 'upload_video')
 
     let media
@@ -329,26 +333,22 @@ async function handleLink(
       return
     }
 
-    try {
-      if (media.videoTooBig) {
-        await sendMessage(chatId, 'The video is over 2 GB, so it is not in the chat. Transcribing the audio.')
-      } else if (media.videoPath) {
-        try {
-          await sendLocalVideo(chatId, media.videoPath)
-        } catch {
-          await sendMessage(chatId, 'Could not send the video. Transcribing the audio.')
-        }
-      }
-
-      const audioBuf = await readFile(media.audioPath)
-
-      let host = 'link'
-      try { host = new URL(url).hostname } catch { /* keep the fallback */ }
-      const file = new File([new Uint8Array(audioBuf)], 'audio.m4a')
-      await completeTranscription(chatId, userId, langCode, host, file, 'audio.m4a', 0, false)
-    } finally {
-      await media.cleanup()
-    }
+    await deliverPost({
+      post: media,
+      sourceUrl: url,
+      sendText: (text: string) => sendPostMessage(chatId, text),
+      sendMedia: (items: LinkPostItem[]) => sendLocalPost(chatId, items),
+      analyze: (filePath: string) => analyzeImage(filePath),
+      transcribe: async (item: LinkPostItem) => {
+        if (!item.audioPath) return
+        const audioBuf = await readFile(item.audioPath)
+        let host = 'link'
+        try { host = new URL(url).hostname } catch { /* keep the fallback */ }
+        if (media.items.length > 1) await sendPostMessage(chatId, `Видео ${item.index} — расшифровка речи:`)
+        const file = new File([new Uint8Array(audioBuf)], 'audio.m4a')
+        await completeTranscription(chatId, userId, langCode, host, file, 'audio.m4a', 0, false)
+      },
+    })
   } finally {
     freeLinkSlot(telegramId)
   }
@@ -364,7 +364,7 @@ function linkFailureText(err: unknown): string {
   if (code === 'unsupported') return 'The downloader does not support this link yet. You can send the file instead.'
   if (code === 'source_blocked') return 'The source site blocked the server download or asked for an anti-bot check. The post may still be public.'
   if (code === 'login_required') return 'The source site requires a login for this request, even if the post is public.'
-  if (code === 'no_media') return 'This post has no downloadable video. Photos and carousels are not supported yet.'
+  if (code === 'no_media') return 'This post has no downloadable media or text.'
   return 'Couldn\'t download this because the source or download service failed. You can send the file instead.'
 }
 

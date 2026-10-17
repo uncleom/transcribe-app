@@ -1,11 +1,11 @@
 FROM node:22-bookworm-slim
 
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends ca-certificates ffmpeg iptables util-linux \
+  && apt-get install -y --no-install-recommends ca-certificates curl ffmpeg iptables util-linux \
   && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
-COPY fetch-yt-dlp.mjs private-net.mjs proxy.mjs failures.mjs server.mjs entrypoint.sh ./
+COPY fetch-yt-dlp.mjs private-net.mjs proxy.mjs failures.mjs process.mjs post-media.mjs video-media.mjs server.mjs entrypoint.sh ./
 COPY plugins ./plugins
 RUN node fetch-yt-dlp.mjs && chmod 755 entrypoint.sh
 
